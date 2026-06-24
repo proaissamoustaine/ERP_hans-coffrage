@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthProvider';
 import { C } from '../lib/theme';
 
 const schema = z.object({
@@ -13,6 +15,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
+  const { session } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
 
   const {
@@ -29,6 +32,9 @@ export default function LoginPage() {
     });
     if (error) setAuthError(error.message);
   };
+
+  // Un utilisateur déjà authentifié ne doit pas rester sur /login.
+  if (session) return <Navigate to="/" replace />;
 
   return (
     <div
