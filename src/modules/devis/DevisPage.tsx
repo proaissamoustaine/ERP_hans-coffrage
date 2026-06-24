@@ -14,6 +14,7 @@ import { devisSchema, type DevisInput } from './devisSchema';
 
 type DevisFormValues = z.input<typeof devisSchema>;
 import { useDevis, useCreateDevis, useUpdateDevisStatut, useRevisionDevis } from './useDevis';
+import { useAccepterDevis } from './useAccepterDevis';
 import { useClients } from '../clients/useClients';
 
 // Row type: base devis row + joined clients relation
@@ -46,6 +47,7 @@ export function DevisPage() {
   const createDevis = useCreateDevis();
   const updateStatut = useUpdateDevisStatut();
   const revisionDevis = useRevisionDevis();
+  const accepterDevis = useAccepterDevis();
   const { data: clients } = useClients();
   const [showForm, setShowForm] = useState(false);
 
@@ -272,7 +274,17 @@ export function DevisPage() {
                                 <Btn
                                   variant="primary"
                                   className="!px-3 !py-1 text-xs"
-                                  onClick={() => updateStatut.mutate({ id: d.id, statut: 'accepte' })}
+                                  onClick={() =>
+                                    accepterDevis.mutate({
+                                      id: d.id,
+                                      numero: d.numero,
+                                      mode: d.mode,
+                                      client_id: d.client_id,
+                                      chantier: d.chantier,
+                                      objet: d.objet,
+                                      total_ht: d.total_ht,
+                                    })
+                                  }
                                 >
                                   Accepter
                                 </Btn>

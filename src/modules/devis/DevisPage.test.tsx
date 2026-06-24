@@ -29,6 +29,10 @@ vi.mock('../clients/useClients', () => ({
   useClients: () => ({ data: [], isLoading: false, error: null }),
 }));
 
+vi.mock('./useAccepterDevis', () => ({
+  useAccepterDevis: () => ({ mutate: vi.fn() }),
+}));
+
 import { DevisPage } from './DevisPage';
 
 describe('DevisPage', () => {

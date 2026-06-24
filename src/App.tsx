@@ -10,6 +10,7 @@ const DashboardPage = lazy(() => import('./modules/dashboard/DashboardPage'));
 const ComingSoonPage = lazy(() => import('./modules/ComingSoonPage'));
 const ClientsPage = lazy(() => import('./modules/clients/ClientsPage'));
 const DevisPage = lazy(() => import('./modules/devis/DevisPage'));
+const AffairesPage = lazy(() => import('./modules/affaires/AffairesPage'));
 
 function Loading() {
   return (
@@ -39,7 +40,7 @@ export default function App() {
             />
             <Route path="clients" element={<ProtectedRoute page="clients"><ClientsPage /></ProtectedRoute>} />
             <Route path="devis" element={<ProtectedRoute page="devis"><DevisPage /></ProtectedRoute>} />
-            <Route path="affaires" element={<ProtectedRoute page="affaires"><ComingSoonPage /></ProtectedRoute>} />
+            <Route path="affaires" element={<ProtectedRoute page="affaires"><AffairesPage /></ProtectedRoute>} />
             <Route path="flashage" element={<ProtectedRoute page="flashage"><ComingSoonPage /></ProtectedRoute>} />
             <Route path="factures" element={<ProtectedRoute page="factures"><ComingSoonPage /></ProtectedRoute>} />
           </Route>
