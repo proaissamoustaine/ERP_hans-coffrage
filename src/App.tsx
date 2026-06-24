@@ -8,6 +8,7 @@ import { AppShell } from './components/layout/AppShell';
 const LoginPage = lazy(() => import('./auth/LoginPage'));
 const DashboardPage = lazy(() => import('./modules/dashboard/DashboardPage'));
 const ComingSoonPage = lazy(() => import('./modules/ComingSoonPage'));
+const ClientsPage = lazy(() => import('./modules/clients/ClientsPage'));
 
 function Loading() {
   return (
@@ -35,7 +36,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="clients" element={<ProtectedRoute page="clients"><ComingSoonPage /></ProtectedRoute>} />
+            <Route path="clients" element={<ProtectedRoute page="clients"><ClientsPage /></ProtectedRoute>} />
             <Route path="devis" element={<ProtectedRoute page="devis"><ComingSoonPage /></ProtectedRoute>} />
             <Route path="affaires" element={<ProtectedRoute page="affaires"><ComingSoonPage /></ProtectedRoute>} />
             <Route path="flashage" element={<ProtectedRoute page="flashage"><ComingSoonPage /></ProtectedRoute>} />
