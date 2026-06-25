@@ -4,12 +4,13 @@ import { C } from '../../lib/theme';
 type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(props, ref) {
+  const { className, style, ...rest } = props;
   return (
     <input
-      {...props}
+      {...rest}
       ref={ref}
-      className={`block w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 ${props.className ?? ''}`}
-      style={{ borderColor: C.border, color: C.text, backgroundColor: C.bg, ...props.style }}
+      className={`w-full px-3 py-2 border rounded text-sm outline-none transition-colors ${className ?? ''}`}
+      style={{ borderColor: C.border, backgroundColor: '#FFF8E1', ...style }}
     />
   );
 });

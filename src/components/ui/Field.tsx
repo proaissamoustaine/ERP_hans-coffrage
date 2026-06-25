@@ -5,23 +5,29 @@ type FieldProps = {
   label: string;
   error?: string;
   required?: boolean;
+  hint?: string;
+  full?: boolean;
   children: ReactNode;
 };
 
-export function Field({ label, error, required, children }: FieldProps) {
+export function Field({ label, error, required, hint, full, children }: FieldProps) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium" style={{ color: C.text }}>
+    <div className={full ? 'col-span-2' : ''}>
+      <label
+        className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"
+        style={{ color: C.textMuted }}
+      >
         {label}
-        {required && (
-          <span className="ml-1" style={{ color: C.danger }}>
-            *
-          </span>
-        )}
+        {required && <span style={{ color: C.danger }}>*</span>}
       </label>
-      {children}
+      <div className="mt-1">{children}</div>
+      {hint && (
+        <div className="text-[10px] mt-1" style={{ color: C.textLight }}>
+          {hint}
+        </div>
+      )}
       {error && (
-        <p className="text-xs" style={{ color: C.danger }}>
+        <p className="text-xs mt-0.5" style={{ color: C.danger }}>
           {error}
         </p>
       )}

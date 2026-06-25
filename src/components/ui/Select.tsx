@@ -4,12 +4,15 @@ import { C } from '../../lib/theme';
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(props, ref) {
+  const { className, style, children, ...rest } = props;
   return (
     <select
-      {...props}
+      {...rest}
       ref={ref}
-      className={`block w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 ${props.className ?? ''}`}
-      style={{ borderColor: C.border, color: C.text, backgroundColor: C.bg, ...props.style }}
-    />
+      className={`w-full px-3 py-2 border rounded text-sm outline-none bg-white ${className ?? ''}`}
+      style={{ borderColor: C.border, ...style }}
+    >
+      {children}
+    </select>
   );
 });
