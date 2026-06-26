@@ -1,10 +1,14 @@
 import { useLocation } from 'react-router-dom';
-import { ChevronRight, Search, Bell, LogOut } from 'lucide-react';
+import { ChevronRight, Search, Bell, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { findNavItem } from '../nav';
 import { C } from '../../lib/theme';
 
-export function Topbar() {
+type TopbarProps = {
+  onMenuClick?: () => void;
+};
+
+export function Topbar({ onMenuClick }: TopbarProps) {
   const { profil, signOut } = useAuth();
   const location = useLocation();
 
@@ -17,6 +21,16 @@ export function Topbar() {
       className="h-14 lg:h-16 px-4 lg:px-8 flex items-center justify-between border-b bg-white sticky top-0 z-30"
       style={{ borderColor: C.border }}
     >
+      {/* Bouton hamburger — mobile uniquement */}
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="Ouvrir le menu"
+        className="lg:hidden p-2 -ml-2 rounded hover:bg-stone-100"
+      >
+        <Menu size={20} style={{ color: C.text }} />
+      </button>
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm min-w-0">
         {breadcrumbSection && (

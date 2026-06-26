@@ -15,7 +15,11 @@ function initials(nom: string): string {
     .slice(0, 2);
 }
 
-export function Sidebar() {
+type SidebarProps = {
+  onNavigate?: () => void;
+};
+
+export function Sidebar({ onNavigate }: SidebarProps) {
   const { profil, role, signOut } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
@@ -62,6 +66,7 @@ export function Sidebar() {
                   key={item.id}
                   to={item.path}
                   end={item.path === '/'}
+                  onClick={() => onNavigate?.()}
                   className="w-full flex items-center gap-3 px-3 py-2.5 lg:py-2 rounded text-[13px] font-medium transition-all"
                   style={({ isActive }) => ({
                     backgroundColor: isActive ? C.primaryDark : 'transparent',
@@ -104,7 +109,7 @@ export function Sidebar() {
             style={{ border: `1px solid ${C.border}` }}
           >
             <button
-              onClick={() => { void signOut(); setShowMenu(false); }}
+              onClick={() => { void signOut(); setShowMenu(false); onNavigate?.(); }}
               className="w-full px-3 py-2.5 flex items-center gap-3 hover:bg-stone-50 text-left"
               style={{ backgroundColor: C.dangerSoft }}
             >
