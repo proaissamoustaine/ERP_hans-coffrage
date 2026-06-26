@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { canAccess } from './roles';
+import { canAccess, roleLabel } from './roles';
+
+describe('roleLabel', () => {
+  it("'admin' → 'Administrateur'", () => {
+    expect(roleLabel('admin')).toBe('Administrateur');
+  });
+  it("'bureau_etudes' → \"Bureau d'études\"", () => {
+    expect(roleLabel('bureau_etudes')).toBe("Bureau d'études");
+  });
+  it('null → —', () => {
+    expect(roleLabel(null)).toBe('—');
+  });
+  it("'inconnu' → 'inconnu'", () => {
+    expect(roleLabel('inconnu')).toBe('inconnu');
+  });
+});
 
 describe('canAccess', () => {
   it('admin et direction accèdent à tout', () => {

@@ -3,6 +3,7 @@ import { ChevronRight, Search, Bell, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { findNavItem } from '../nav';
 import { C } from '../../lib/theme';
+import { roleLabel } from '../../auth/roles';
 
 type TopbarProps = {
   onMenuClick?: () => void;
@@ -66,7 +67,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               className="text-[10px] uppercase tracking-wider font-bold"
               style={{ color: C.primary }}
             >
-              {profil.role}
+              {roleLabel(profil.role)}
             </span>
           </div>
         )}

@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { visibleNav } from '../nav';
 import { Logo } from './Logo';
 import { C } from '../../lib/theme';
+import { roleLabel } from '../../auth/roles';
 
 function initials(nom: string): string {
   return nom
@@ -47,7 +48,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         >
           <span>Connecté en mode</span>
         </div>
-        <div className="text-sm font-bold text-white mt-0.5">{profil?.role ?? '—'}</div>
+        <div className="text-sm font-bold text-white mt-0.5">{roleLabel(profil?.role)}</div>
       </div>
 
       {/* Nav groups */}
@@ -135,7 +136,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           <div className="flex-1 min-w-0 text-left">
             <div className="text-sm font-bold text-white truncate">{profil?.nom ?? '—'}</div>
             <div className="text-[10px] truncate" style={{ color: C.accent }}>
-              {profil?.role ?? ''}
+              {roleLabel(profil?.role)}
             </div>
           </div>
           <ChevronDown

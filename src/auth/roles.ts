@@ -1,5 +1,18 @@
 export type UserRole = 'admin' | 'direction' | 'compta' | 'chef_prod' | 'bureau_etudes' | 'operateur';
 
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrateur',
+  direction: 'Direction',
+  compta: 'Comptabilité',
+  chef_prod: 'Chef de production',
+  bureau_etudes: "Bureau d'études",
+  operateur: 'Opérateur',
+};
+
+export function roleLabel(role: string | null | undefined): string {
+  return ROLE_LABELS[role as UserRole] ?? role ?? '—';
+}
+
 export const ROLE_PAGES: Record<UserRole, 'all' | string[]> = {
   admin: 'all',
   direction: 'all',

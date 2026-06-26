@@ -17,6 +17,9 @@ vi.mock('./useAffaires', () => ({
         statut: 'En cours',
         date_livraison: '2026-09-12',
         created_at: '2026-06-24',
+        element: 'GC1',
+        conducteur: 'Jean Testeur',
+        conducteur_tel: '03 29 00 00 00',
       },
     ],
     isLoading: false,
@@ -53,6 +56,37 @@ describe('FicheAffairePage', () => {
     // « Montage atelier » est à la fois une étape du cycle et une sous-étape.
     expect(screen.getAllByText('Montage atelier').length).toBeGreaterThan(0);
     expect(screen.getByText('*C26-0624-01*')).toBeInTheDocument();
+  });
+
+  it("onglet Synthèse affiche l'élément GC1 et le bouton de cycle avec le nouveau libellé", () => {
+    render(
+      <MemoryRouter initialEntries={['/affaires/a1']}>
+        <Routes>
+          <Route path="/affaires/:id" element={<FicheAffairePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // GC1 doit apparaître au moins une fois (tableau infos + code-barres)
+    expect(screen.getAllByText(/GC1/).length).toBeGreaterThan(0);
+    // Le bouton cycle utilise le nouveau libellé avec le nom de l'étape
+    expect(
+      screen.getByRole('button', { name: /Marquer «.*» fait/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("onglet Client & Commande affiche le conducteur Jean Testeur", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/affaires/a1']}>
+        <Routes>
+          <Route path="/affaires/:id" element={<FicheAffairePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Client & Commande' }));
+    expect(screen.getByText('Jean Testeur')).toBeInTheDocument();
   });
 
   it("onglet Prix de revient affiche l'état vide honnête, onglet Heures affiche le badge Démo", async () => {

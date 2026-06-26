@@ -1,15 +1,7 @@
 import { useAuth } from '../../auth/AuthProvider';
 import { Card } from '../../components/ui/Card';
 import { C } from '../../lib/theme';
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrateur',
-  direction: 'Direction',
-  compta: 'Comptabilité',
-  chef_prod: 'Chef de production',
-  bureau_etudes: "Bureau d'études",
-  operateur: 'Opérateur',
-};
+import { roleLabel } from '../../auth/roles';
 
 export default function DashboardPage() {
   const { profil, role } = useAuth();
@@ -31,7 +23,7 @@ export default function DashboardPage() {
         </p>
         {role && (
           <p className="mt-1 text-sm" style={{ color: C.textMuted }}>
-            Rôle : <span style={{ color: C.primary }}>{ROLE_LABELS[role] ?? role}</span>
+            Rôle : <span style={{ color: C.primary }}>{roleLabel(role)}</span>
           </p>
         )}
       </Card>

@@ -228,7 +228,7 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
                   style={{ backgroundColor: C.success }}
                 >
                   <Check size={12} className="inline mr-1 -mt-0.5" />
-                  Marquer fait
+                  Marquer « {next.label} » fait
                 </button>
               </div>
             </div>
@@ -401,7 +401,7 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
                     {`*${affaire.numero}*`}
                   </div>
                   <div className="text-[10px] mt-1" style={{ color: C.textMuted }}>
-                    Élément : (non renseigné)
+                    Élément : {affaire.element || '(non renseigné)'}
                   </div>
                 </div>
                 {/* Représentation visuelle code-barres */}
@@ -435,7 +435,7 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
                       [
                         ['N° Affaire', affaire.numero, true],
                         ['Type', modeLabel, false],
-                        ['Élément', '—', false],
+                        ['Élément', affaire.element || '—', false],
                         ['Date création', formatDate(affaire.created_at), true],
                         ['Démarrage', '—', true],
                         ['Livraison souhaitée', formatDate(affaire.date_livraison), true],
@@ -526,11 +526,11 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
                   Conducteur de travaux
                 </h4>
                 <div className="text-sm font-semibold mt-2" style={{ color: C.text }}>
-                  —
+                  {affaire.conducteur ?? '—'}
                 </div>
                 <div className="space-y-2 mt-3 text-xs" style={{ color: C.textMuted }}>
                   <div className="flex items-center gap-2">
-                    <Phone size={12} /> —
+                    <Phone size={12} /> {affaire.conducteur_tel ?? '—'}
                   </div>
                 </div>
               </div>
@@ -571,7 +571,10 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
                     Conducteur
                   </h4>
                   <div className="text-sm font-semibold mt-1" style={{ color: C.text }}>
-                    —
+                    {affaire.conducteur ?? '—'}
+                  </div>
+                  <div className="text-xs font-mono mt-0.5" style={{ color: C.textMuted }}>
+                    {affaire.conducteur_tel ?? '—'}
                   </div>
                 </div>
               </div>
