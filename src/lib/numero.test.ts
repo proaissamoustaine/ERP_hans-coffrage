@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { prefixForMode, generateNumeroRacine, splitNumero, nextVersion, decodeNumero } from './numero';
+import { prefixForMode, generateNumeroRacine, splitNumero, nextVersion, decodeNumero, nextAffaireNumero } from './numero';
 const D = new Date('2025-10-20T09:00:00Z');
 describe('numero racine', () => {
   it('préfixe par mode', () => {
@@ -18,6 +18,16 @@ describe('numero racine', () => {
   it('nextVersion = max + 1 sur la racine', () => {
     expect(nextVersion('C25-1020-03', ['C25-1020-03A'])).toBe('C25-1020-03B');
     expect(nextVersion('C25-1020-03', ['C25-1020-03A', 'C25-1020-03B'])).toBe('C25-1020-03C');
+  });
+});
+
+describe('nextAffaireNumero', () => {
+  const D = new Date('2026-06-26T09:00:00Z');
+  it('premier numéro du jour sans existants', () => {
+    expect(nextAffaireNumero('coffrage', [], D)).toBe('C26-0626-01');
+  });
+  it('incrémente quand le numéro du jour existe déjà', () => {
+    expect(nextAffaireNumero('coffrage', ['C26-0626-01'], D)).toBe('C26-0626-02');
   });
 });
 

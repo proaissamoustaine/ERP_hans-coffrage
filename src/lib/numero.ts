@@ -26,6 +26,10 @@ export function nextVersion(racine: string, existingNumeros: string[]): string {
   return racine + String.fromCharCode(max.charCodeAt(0) + 1);
 }
 
+export function nextAffaireNumero(mode: ModeChiffrage, existingNumeros: string[], date: Date = new Date()): string {
+  return splitNumero(generateNumeroRacine(mode, existingNumeros, date)).racine;
+}
+
 export function decodeNumero(numero: string): {
   lettre: string;
   annee: string;

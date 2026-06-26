@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('./useAffaires', () => ({
@@ -17,11 +18,16 @@ vi.mock('./useAffaires', () => ({
     isLoading: false,
     error: null,
   }),
+  useCreateAffaire: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
 
 vi.mock('./useEtapes', () => ({
   useEtapes: () => ({ data: [], isLoading: false }),
   useToggleEtape: () => ({ mutate: vi.fn() }),
+}));
+
+vi.mock('../clients/useClients', () => ({
+  useClients: () => ({ data: [{ id: 'c1', nom: 'BOUYGUES TP RF' }] }),
 }));
 
 import { AffairesPage } from './AffairesPage';
@@ -35,5 +41,18 @@ describe('AffairesPage', () => {
     );
     expect(screen.getByText('C26-0624-01')).toBeInTheDocument();
     expect(screen.getByText('EIFFAGE ALSACE')).toBeInTheDocument();
+  });
+
+  it('ouvre la modale Nouvelle affaire au clic', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <AffairesPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole('button', { name: /Nouvelle affaire/ }));
+    expect(screen.getByText('Désignation')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Créer l'affaire/ })).toBeInTheDocument();
+    expect(screen.getByText('BOUYGUES TP RF')).toBeInTheDocument();
   });
 });

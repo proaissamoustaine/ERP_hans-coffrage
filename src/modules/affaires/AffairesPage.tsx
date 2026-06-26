@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Briefcase,
   TrendingUp,
@@ -15,6 +17,10 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { KPI } from '../../components/ui/KPI';
 import { Card } from '../../components/ui/Card';
 import { Btn } from '../../components/ui/Btn';
+import { Modal } from '../../components/ui/Modal';
+import { Field } from '../../components/ui/Field';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
 import { Spinner } from '../../components/ui/Spinner';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { TypeBadge } from '../../components/ui/TypeBadge';
@@ -22,10 +28,141 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatDate } from '../../lib/format';
 import { C } from '../../lib/theme';
 import type { Tables } from '../../lib/database.types';
-import { useAffaires } from './useAffaires';
+import { useAffaires, useCreateAffaire } from './useAffaires';
+import { useClients } from '../clients/useClients';
+import { affaireSchema, type AffaireInput } from './affaireSchema';
 
 // Row type: base affaires row + joined clients relation
 type AffaireRow = Tables<'affaires'> & { clients: { nom: string } | null };
+
+// ---------------------------------------------------------------------------
+// Modal form — Nouvelle affaire
+// ---------------------------------------------------------------------------
+
+type ModalNouvelleAffaireProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+function ModalNouvelleAffaire({ open, onClose }: ModalNouvelleAffaireProps) {
+  const createAffaire = useCreateAffaire();
+  const { data: clients } = useClients();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<AffaireInput>({
+    resolver: zodResolver(affaireSchema),
+    defaultValues: {
+      mode: 'coffrage',
+      client_id: '',
+      chantier: '',
+      objet: '',
+      total_ht: 0,
+      date_livraison: '',
+    },
+  });
+
+  function onSubmit(values: AffaireInput) {
+    createAffaire.mutate(values, {
+      onSuccess: () => {
+        reset();
+        onClose();
+      },
+    });
+  }
+
+  function handleClose() {
+    reset();
+    onClose();
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={handleClose}
+      icon={Briefcase}
+      size="md"
+      title="Nouvelle affaire"
+      subtitle="N° d'affaire généré automatiquement"
+      footer={
+        <>
+          <Btn variant="secondary" onClick={handleClose}>
+            Annuler
+          </Btn>
+          <Btn
+            icon={Check}
+            onClick={handleSubmit(onSubmit)}
+            disabled={createAffaire.isPending}
+          >
+            {createAffaire.isPending ? 'Enregistrement…' : 'Créer l\'affaire'}
+          </Btn>
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Mode */}
+        <Field label="Mode" error={errors.mode?.message}>
+          <Select {...register('mode')}>
+            <option value="coffrage">Coffrage</option>
+            <option value="prefa">Préfa</option>
+            <option value="mannequin">Mannequin</option>
+            <option value="sateba">Sateba</option>
+            <option value="vente">Vente</option>
+            <option value="usinage">Usinage</option>
+            <option value="decor">Décor</option>
+            <option value="autre">Autre</option>
+          </Select>
+        </Field>
+
+        {/* Client */}
+        <Field label="Client" required error={errors.client_id?.message}>
+          <Select {...register('client_id')}>
+            <option value="">—</option>
+            {(clients ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nom}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        {/* Chantier */}
+        <Field label="Chantier" error={errors.chantier?.message}>
+          <Input {...register('chantier')} placeholder="ex: ARCHIPEL STRASBOURG" />
+        </Field>
+
+        {/* Objet / Désignation */}
+        <Field label="Désignation" error={errors.objet?.message}>
+          <Input {...register('objet')} placeholder="ex: Coffrages poutres B1" />
+        </Field>
+
+        {/* Montant HT */}
+        <Field label="Montant HT (€)" error={errors.total_ht?.message}>
+          <Input
+            {...register('total_ht', { valueAsNumber: true })}
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </Field>
+
+        {/* Date de livraison */}
+        <Field label="Date de livraison" error={errors.date_livraison?.message}>
+          <Input {...register('date_livraison')} type="date" />
+        </Field>
+      </div>
+
+      {createAffaire.isError && (
+        <p className="mt-3 text-sm" style={{ color: C.danger }}>
+          Erreur : {(createAffaire.error as Error)?.message}
+        </p>
+      )}
+    </Modal>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -34,6 +171,7 @@ type AffaireRow = Tables<'affaires'> & { clients: { nom: string } | null };
 export function AffairesPage() {
   const { data: affaires, isLoading, error } = useAffaires();
   const [search, setSearch] = useState('');
+  const [showNew, setShowNew] = useState(false);
   const navigate = useNavigate();
 
   const list = (affaires ?? []) as AffaireRow[];
@@ -66,7 +204,7 @@ export function AffairesPage() {
             <Btn variant="secondary" icon={Download}>
               Export
             </Btn>
-            <Btn icon={Plus}>
+            <Btn icon={Plus} onClick={() => setShowNew(true)}>
               Nouvelle affaire
             </Btn>
           </>
@@ -234,6 +372,8 @@ export function AffairesPage() {
           </Card>
         </div>
       )}
+
+      <ModalNouvelleAffaire open={showNew} onClose={() => setShowNew(false)} />
     </div>
   );
 }
