@@ -36,6 +36,8 @@ import { ETAPES, avancementPondere, prochaineEtape } from '../../lib/etapes';
 import { sousEtapesPonderees } from './sousEtapes';
 import { useAffaires } from './useAffaires';
 import { useEtapes, useToggleEtape } from './useEtapes';
+import { usePieces } from '../formulaire/usePieces';
+import { pieceTotal } from '../formulaire/catalogue';
 
 // Row type: base affaires row + joined clients relation
 type AffaireRow = Tables<'affaires'> & { clients: { nom: string } | null };
@@ -96,6 +98,18 @@ type FicheContentProps = {
 function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
   const { data: etapes } = useEtapes(affaire.id);
   const toggleEtape = useToggleEtape();
+  const { data: pieces } = usePieces(affaire.id);
+  const pieceList = (pieces ?? []) as Tables<'pieces'>[];
+
+  const totalMatieres = pieceList
+    .filter((p) => p.type !== 'Main_Oeuvre')
+    .reduce((s, p) => s + pieceTotal(p), 0);
+  const totalMO = pieceList
+    .filter((p) => p.type === 'Main_Oeuvre')
+    .reduce((s, p) => s + pieceTotal(p), 0);
+  const totalPR = totalMatieres + totalMO;
+  const marge = (affaire.total_ht ?? 0) - totalPR;
+  const margePct = affaire.total_ht ? (marge / affaire.total_ht) * 100 : 0;
 
   const etapesList = etapes ?? [];
   const etapesForCalc = etapesList.map((e) => ({ etape: e.etape, fait: e.fait }));
@@ -632,19 +646,126 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
           )}
 
           {tab === 'pr' && (
-            <div className="text-center py-8">
-              <Calculator size={48} className="mx-auto mb-3" style={{ color: C.textMuted }} />
-              <p className="text-sm" style={{ color: C.textMuted }}>
-                Aucune pièce saisie pour cette affaire — le PR ne peut pas être calculé.
-              </p>
-              <Link
-                to="/formulaire"
-                className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider text-white"
-                style={{ backgroundColor: C.accent }}
-              >
-                <ClipboardList size={12} />Saisir les pièces
-              </Link>
-            </div>
+            pieceList.length === 0 ? (
+              <div className="text-center py-8">
+                <Calculator size={48} className="mx-auto mb-3" style={{ color: C.textMuted }} />
+                <p className="text-sm" style={{ color: C.textMuted }}>
+                  Aucune pièce saisie pour cette affaire — le PR ne peut pas être calculé.
+                </p>
+                <Link
+                  to="/formulaire"
+                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider text-white"
+                  style={{ backgroundColor: C.accent }}
+                >
+                  <ClipboardList size={12} />Saisir les pièces
+                </Link>
+              </div>
+            ) : (
+              <>
+                {/* KPI synthèse */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="p-3 border rounded" style={{ borderColor: C.border }}>
+                    <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: C.textMuted }}>Matières</div>
+                    <div className="text-base font-bold font-mono" style={{ color: C.text }}>{totalMatieres.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</div>
+                    <div className="text-[10px]" style={{ color: C.textLight }}>{pieceList.filter((p) => p.type !== 'Main_Oeuvre').length} lignes</div>
+                  </div>
+                  <div className="p-3 border rounded" style={{ borderColor: C.border }}>
+                    <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: C.textMuted }}>Main d'œuvre</div>
+                    <div className="text-base font-bold font-mono" style={{ color: C.text }}>{totalMO.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</div>
+                    <div className="text-[10px]" style={{ color: C.textLight }}>{pieceList.filter((p) => p.type === 'Main_Oeuvre').length} lignes</div>
+                  </div>
+                  <div className="p-3 border-2 rounded" style={{ borderColor: C.primary, backgroundColor: C.primarySoft }}>
+                    <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: C.primary }}>Total PR estimé</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: C.primary }}>{totalPR.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</div>
+                  </div>
+                  <div
+                    className="p-3 border-2 rounded"
+                    style={{
+                      borderColor: marge < 0 ? C.danger : margePct < 15 ? C.warning : C.success,
+                      backgroundColor: marge < 0 ? C.dangerSoft : margePct < 15 ? '#FFF8E1' : C.successSoft,
+                    }}
+                  >
+                    <div
+                      className="text-[10px] uppercase tracking-wider font-bold"
+                      style={{ color: marge < 0 ? C.danger : margePct < 15 ? C.warning : C.success }}
+                    >
+                      Marge prévisionnelle
+                    </div>
+                    <div
+                      className="text-lg font-bold font-mono"
+                      style={{ color: marge < 0 ? C.danger : margePct < 15 ? C.warning : C.success }}
+                    >
+                      {marge.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} € · {margePct.toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tableau des pièces */}
+                <div className="overflow-x-auto border rounded" style={{ borderColor: C.border }}>
+                  <table className="w-full text-xs">
+                    <thead style={{ backgroundColor: C.bgSoft }}>
+                      <tr>
+                        {['Type', 'Réf', 'Désignation', 'Qté', 'Coef chute', 'Prix unit.', 'Total HT'].map((h) => (
+                          <th
+                            key={h}
+                            className="text-left px-3 py-2 text-[10px] uppercase tracking-wider font-bold"
+                            style={{ color: C.textMuted }}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pieceList.map((p) => (
+                        <tr key={p.id} className="border-t hover:bg-stone-50" style={{ borderColor: C.border }}>
+                          <td className="px-3 py-2">
+                            {p.type === 'Main_Oeuvre'
+                              ? <Badge bg={C.accent}>MO</Badge>
+                              : <Badge bg={C.primary}>{p.type}</Badge>}
+                          </td>
+                          <td className="px-3 py-2 font-mono font-bold" style={{ color: C.primary }}>
+                            {p.ref2 ?? p.ref1}
+                          </td>
+                          <td className="px-3 py-2 truncate max-w-[280px]" title={p.designation ?? ''} style={{ color: C.text }}>
+                            {p.designation}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {p.nb}{p.type === 'Main_Oeuvre' ? ' h' : ''}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-[10px]" style={{ color: C.textMuted }}>
+                            {(p.type === 'Main_Oeuvre'
+                              ? 1
+                              : 1 / (1 - ((p.pourcent_chute ?? 0) / 100))
+                            ).toFixed(3)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {(p.prix ?? 0).toFixed(2)} {p.unite}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono font-bold" style={{ color: C.text }}>
+                            {pieceTotal(p).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot style={{ backgroundColor: C.bgSoft }}>
+                      <tr className="border-t-2" style={{ borderColor: C.primary }}>
+                        <td
+                          colSpan={6}
+                          className="px-3 py-2 text-right text-xs uppercase tracking-wider font-bold"
+                          style={{ color: C.text }}
+                        >
+                          Total PR estimé
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-sm font-bold" style={{ color: C.primary }}>
+                          {totalPR.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
+            )
           )}
 
           {tab === 'livraisons' && (

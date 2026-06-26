@@ -38,6 +38,27 @@ vi.mock('./useEtapes', () => ({
   useToggleEtape: () => ({ mutate: vi.fn() }),
 }));
 
+vi.mock('../formulaire/usePieces', () => ({
+  usePieces: () => ({
+    data: [
+      {
+        id: 'p1',
+        type: 'CP_Filme',
+        ref1: 'F',
+        ref2: 'F15',
+        designation: 'Panneau',
+        nb: 2,
+        prix: 65.56,
+        unite: '€/U',
+        pourcent_chute: 12,
+        geometrie: 'standard',
+        dimensions: {},
+      },
+    ],
+    isLoading: false,
+  }),
+}));
+
 import { FicheAffairePage } from './FicheAffairePage';
 
 describe('FicheAffairePage', () => {
@@ -89,7 +110,7 @@ describe('FicheAffairePage', () => {
     expect(screen.getByText('Jean Testeur')).toBeInTheDocument();
   });
 
-  it("onglet Prix de revient affiche l'état vide honnête, onglet Heures affiche le badge Démo", async () => {
+  it("onglet Prix de revient affiche le tableau PR avec les vraies pièces", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/affaires/a1']}>
@@ -102,7 +123,22 @@ describe('FicheAffairePage', () => {
     // Cliquer sur l'onglet « Prix de revient »
     const tabPR = screen.getByRole('button', { name: /Prix de revient/i });
     await user.click(tabPR);
-    expect(screen.getByText(/Aucune pièce saisie/)).toBeInTheDocument();
+
+    // Le tableau PR doit apparaître (tuile KPI + pied de tableau → plusieurs occurrences)
+    expect(screen.getAllByText(/Total PR estimé/).length).toBeGreaterThan(0);
+    // La désignation de la pièce mockée doit être visible
+    expect(screen.getByText('Panneau')).toBeInTheDocument();
+  });
+
+  it("onglet Heures affiche le badge Démo", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/affaires/a1']}>
+        <Routes>
+          <Route path="/affaires/:id" element={<FicheAffairePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
 
     // Cliquer sur l'onglet « Heures »
     const tabHeures = screen.getByRole('button', { name: /^Heures$/i });
