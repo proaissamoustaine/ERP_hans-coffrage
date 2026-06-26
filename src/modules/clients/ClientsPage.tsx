@@ -1,22 +1,77 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Building2,
+  TrendingUp,
+  Briefcase,
+  Star,
+  Download,
+  Plus,
+  Phone,
+  Mail,
+  Check,
+} from 'lucide-react';
+
+import { PageHeader } from '../../components/ui/PageHeader';
+import { KPI } from '../../components/ui/KPI';
 import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { Btn } from '../../components/ui/Btn';
+import { Modal } from '../../components/ui/Modal';
 import { Field } from '../../components/ui/Field';
 import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
 import { Spinner } from '../../components/ui/Spinner';
 import { C } from '../../lib/theme';
-import type { Tables } from '../../lib/database.types';
+
 import { clientSchema, type ClientInput } from './clientSchema';
 import { useClients, useCreateClient } from './useClients';
+import { useAffaires } from '../affaires/useAffaires';
+import type { Tables } from '../../lib/database.types';
 
 type Client = Tables<'clients'>;
+type Affaire = Tables<'affaires'>;
 
-export function ClientsPage() {
-  const { data: clients, isLoading, error } = useClients();
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+function caForClient(affaires: Affaire[], clientId: string): number {
+  return affaires
+    .filter((a) => a.client_id === clientId)
+    .reduce((sum, a) => sum + (a.total_ht ?? 0), 0);
+}
+
+function affairesCountForClient(affaires: Affaire[], clientId: string): number {
+  return affaires.filter((a) => a.client_id === clientId).length;
+}
+
+function topClientNom(clients: Client[], affaires: Affaire[]): string {
+  if (!clients.length) return '—';
+  let best: Client | null = null;
+  let bestCa = -1;
+  for (const c of clients) {
+    const ca = caForClient(affaires, c.id);
+    if (ca > bestCa) {
+      bestCa = ca;
+      best = c;
+    }
+  }
+  return best ? best.nom : '—';
+}
+
+// ---------------------------------------------------------------------------
+// Modal form — only DB-persisted fields
+// ---------------------------------------------------------------------------
+
+type ModalNouveauClientProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+function ModalNouveauClient({ open, onClose }: ModalNouveauClientProps) {
   const createClient = useCreateClient();
-  const [showForm, setShowForm] = useState(false);
 
   const {
     register,
@@ -32,82 +87,148 @@ export function ClientsPage() {
     createClient.mutate(values, {
       onSuccess: () => {
         reset();
-        setShowForm(false);
+        onClose();
       },
     });
   }
 
+  function handleClose() {
+    reset();
+    onClose();
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: C.text }}>
-            Clients
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: C.textMuted }}>
-            Gestion du référentiel clients
-          </p>
-        </div>
-        <Btn
-          variant={showForm ? 'secondary' : 'primary'}
-          onClick={() => {
-            setShowForm((v) => !v);
-            reset();
-          }}
-        >
-          {showForm ? 'Annuler' : 'Nouveau client'}
-        </Btn>
+    <Modal
+      open={open}
+      onClose={handleClose}
+      icon={Building2}
+      size="md"
+      title="Nouveau client"
+      subtitle="Création d'une fiche client"
+      footer={
+        <>
+          <Btn variant="secondary" onClick={handleClose}>
+            Annuler
+          </Btn>
+          <Btn
+            icon={Check}
+            onClick={handleSubmit(onSubmit)}
+            disabled={createClient.isPending}
+          >
+            {createClient.isPending ? 'Enregistrement…' : 'Créer le client'}
+          </Btn>
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Raison sociale — full width */}
+        <Field label="Raison sociale" required full error={errors.nom?.message}>
+          <Input {...register('nom')} placeholder="ex: EIFFAGE GENIE CIVIL" />
+        </Field>
+
+        {/* Type */}
+        <Field label="Type" error={errors.type?.message}>
+          <Select {...register('type')}>
+            <option value="">—</option>
+            <option value="BTP">BTP</option>
+            <option value="TP">TP</option>
+            <option value="GC">GC</option>
+            <option value="PREFA">PREFA</option>
+            <option value="USINAGE">USINAGE</option>
+            <option value="Autre">Autre</option>
+          </Select>
+        </Field>
+
+        {/* Ville */}
+        <Field label="Ville" error={errors.ville?.message}>
+          <Input {...register('ville')} placeholder="BUSSANG" />
+        </Field>
+
+        {/* Contact */}
+        <Field label="Contact" error={errors.contact?.message}>
+          <Input {...register('contact')} placeholder="M. DUPONT Jean" />
+        </Field>
+
+        {/* Téléphone */}
+        <Field label="Téléphone" error={errors.tel?.message}>
+          <Input {...register('tel')} placeholder="06 12 34 56 78" />
+        </Field>
+
+        {/* Email */}
+        <Field label="Email" error={errors.email?.message}>
+          <Input {...register('email')} type="email" placeholder="contact@..." />
+        </Field>
       </div>
 
-      {/* Create form */}
-      {showForm && (
-        <Card>
-          <h2 className="mb-4 text-base font-semibold" style={{ color: C.text }}>
-            Nouveau client
-          </h2>
-          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Nom" required error={errors.nom?.message}>
-              <Input {...register('nom')} placeholder="EIFFAGE ALSACE" />
-            </Field>
-            <Field label="Type" error={errors.type?.message}>
-              <Input {...register('type')} placeholder="BTP, Industrie…" />
-            </Field>
-            <Field label="Ville" error={errors.ville?.message}>
-              <Input {...register('ville')} placeholder="STRASBOURG" />
-            </Field>
-            <Field label="Contact" error={errors.contact?.message}>
-              <Input {...register('contact')} placeholder="M. Dupont" />
-            </Field>
-            <Field label="Téléphone" error={errors.tel?.message}>
-              <Input {...register('tel')} placeholder="06 00 00 00 00" />
-            </Field>
-            <Field label="Email" error={errors.email?.message}>
-              <Input {...register('email')} type="email" placeholder="contact@exemple.fr" />
-            </Field>
-            <div className="col-span-full flex justify-end gap-3 pt-2">
-              <Btn
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  reset();
-                  setShowForm(false);
-                }}
-              >
-                Annuler
-              </Btn>
-              <Btn type="submit" disabled={createClient.isPending}>
-                {createClient.isPending ? 'Enregistrement…' : 'Créer le client'}
-              </Btn>
-            </div>
-          </form>
-          {createClient.isError && (
-            <p className="mt-3 text-sm" style={{ color: C.danger }}>
-              Erreur : {createClient.error?.message}
-            </p>
-          )}
-        </Card>
+      {createClient.isError && (
+        <p className="mt-3 text-sm" style={{ color: C.danger }}>
+          Erreur : {(createClient.error as Error)?.message}
+        </p>
       )}
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+export function ClientsPage() {
+  const { data: clients, isLoading, error } = useClients();
+  const { data: affaires = [] } = useAffaires();
+  const [showModal, setShowModal] = useState(false);
+
+  // ---- KPI values ----------------------------------------------------------
+  const clientsList = clients ?? [];
+  const totalCA = affaires.reduce((sum, a) => sum + (a.total_ht ?? 0), 0);
+  const topNom = topClientNom(clientsList, affaires as Affaire[]);
+
+  // ---- render --------------------------------------------------------------
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        section="Commercial"
+        title="Clients"
+        subtitle={`${clientsList.length} clients actifs`}
+        actions={
+          <>
+            <Btn variant="secondary" icon={Download}>
+              Export
+            </Btn>
+            <Btn icon={Plus} onClick={() => setShowModal(true)}>
+              Nouveau client
+            </Btn>
+          </>
+        }
+      />
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        <KPI
+          icon={Building2}
+          label="Clients"
+          value={String(clientsList.length)}
+          color={C.primary}
+        />
+        <KPI
+          icon={TrendingUp}
+          label="CA 2025"
+          value={`${(totalCA / 1000).toFixed(0)} k€`}
+          color={C.accent}
+        />
+        <KPI
+          icon={Briefcase}
+          label="Affaires actives"
+          value={String(affaires.length)}
+          color={C.primaryLight}
+        />
+        <KPI
+          icon={Star}
+          label="Top client"
+          value={topNom}
+          color={C.success}
+        />
+      </div>
 
       {/* Loading */}
       {isLoading && (
@@ -118,71 +239,129 @@ export function ClientsPage() {
 
       {/* Error */}
       {error && (
-        <Card>
-          <p className="text-sm font-medium" style={{ color: C.danger }}>
-            Impossible de charger les clients : {(error as Error).message}
-          </p>
+        <p className="text-sm font-medium" style={{ color: C.danger }}>
+          Impossible de charger les clients : {(error as Error).message}
+        </p>
+      )}
+
+      {/* Empty */}
+      {!isLoading && !error && clientsList.length === 0 && (
+        <p className="text-sm" style={{ color: C.textMuted }}>
+          Aucun client
+        </p>
+      )}
+
+      {/* Card grid — exactly like the mockup */}
+      {!isLoading && !error && clientsList.length > 0 && (
+        <Card noPadding className="overflow-hidden">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 gap-px"
+            style={{ backgroundColor: C.border }}
+          >
+            {(clientsList as Client[]).map((c) => {
+              const nbAffaires = affairesCountForClient(affaires as Affaire[], c.id);
+              const ca = caForClient(affaires as Affaire[], c.id);
+              return (
+                <div
+                  key={c.id}
+                  className="bg-white p-5 hover:bg-stone-50 cursor-pointer transition-colors"
+                >
+                  {/* Avatar + name + badge */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded flex items-center justify-center"
+                        style={{ backgroundColor: C.primarySoft }}
+                      >
+                        <Building2 size={20} style={{ color: C.primary }} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm" style={{ color: C.text }}>
+                          {c.nom}
+                        </div>
+                        <div className="text-xs" style={{ color: C.textMuted }}>
+                          {c.ville ?? ''}
+                        </div>
+                      </div>
+                    </div>
+                    {c.type && (
+                      <Badge bg={C.bgSoft} color={C.textMuted}>
+                        {c.type}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <div
+                        className="text-[10px] uppercase tracking-wider font-semibold"
+                        style={{ color: C.textMuted }}
+                      >
+                        Affaires
+                      </div>
+                      <div
+                        className="text-base font-bold font-mono"
+                        style={{ color: C.text }}
+                      >
+                        {nbAffaires}
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className="text-[10px] uppercase tracking-wider font-semibold"
+                        style={{ color: C.textMuted }}
+                      >
+                        CA 2025
+                      </div>
+                      <div
+                        className="text-base font-bold font-mono"
+                        style={{ color: C.primary }}
+                      >
+                        {(ca / 1000).toFixed(0)}k €
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact block */}
+                  <div
+                    className="pt-3 border-t space-y-1"
+                    style={{ borderColor: C.border }}
+                  >
+                    {c.contact && (
+                      <div className="text-xs font-medium" style={{ color: C.text }}>
+                        {c.contact}
+                      </div>
+                    )}
+                    {c.tel && (
+                      <div
+                        className="flex items-center gap-3 text-xs"
+                        style={{ color: C.textMuted }}
+                      >
+                        <span className="flex items-center gap-1">
+                          <Phone size={11} />
+                          {c.tel}
+                        </span>
+                      </div>
+                    )}
+                    {c.email && (
+                      <div
+                        className="flex items-center gap-1 text-xs"
+                        style={{ color: C.textMuted }}
+                      >
+                        <Mail size={11} />
+                        {c.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </Card>
       )}
 
-      {/* Clients table */}
-      {!isLoading && !error && clients && (
-        <Card className="overflow-hidden p-0">
-          {clients.length === 0 ? (
-            <p className="p-6 text-sm" style={{ color: C.textMuted }}>
-              Aucun client enregistré.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ backgroundColor: C.bgSoft, borderBottom: `1px solid ${C.border}` }}>
-                    {['Nom', 'Type', 'Ville', 'Contact', 'Tél', 'Email'].map((col) => (
-                      <th
-                        key={col}
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
-                        style={{ color: C.textMuted }}
-                      >
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {clients.map((client: Client, i: number) => (
-                    <tr
-                      key={client.id}
-                      style={{
-                        backgroundColor: i % 2 === 0 ? C.bg : C.bgWarm,
-                        borderBottom: `1px solid ${C.borderSoft}`,
-                      }}
-                    >
-                      <td className="px-4 py-3 font-medium" style={{ color: C.text }}>
-                        {client.nom}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: C.textMuted }}>
-                        {client.type ?? '—'}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: C.textMuted }}>
-                        {client.ville ?? '—'}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: C.textMuted }}>
-                        {client.contact ?? '—'}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: C.textMuted }}>
-                        {client.tel ?? '—'}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: C.textMuted }}>
-                        {client.email ?? '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
+      <ModalNouveauClient open={showModal} onClose={() => setShowModal(false)} />
     </div>
   );
 }
