@@ -25,3 +25,23 @@ export function nextVersion(racine: string, existingNumeros: string[]): string {
   const max = versions.reduce((acc, v) => (v > acc ? v : acc), 'A');
   return racine + String.fromCharCode(max.charCodeAt(0) + 1);
 }
+
+export function decodeNumero(numero: string): {
+  lettre: string;
+  annee: string;
+  mmjj: string;
+  nn: string;
+  version: string | null;
+  element: string | null;
+} | null {
+  const m = numero.match(/^([A-Z])(\d{2})-(\d{4})-(\d{2})([A-Z]?)(?:-(\d{2}))?$/);
+  if (!m) return null;
+  return {
+    lettre:  m[1],
+    annee:   m[2],
+    mmjj:    m[3],
+    nn:      m[4],
+    version: m[5] || null,
+    element: m[6] ?? null,
+  };
+}
