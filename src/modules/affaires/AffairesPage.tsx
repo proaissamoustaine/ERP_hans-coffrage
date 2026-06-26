@@ -17,6 +17,10 @@ import { KPI } from '../../components/ui/KPI';
 import { Card } from '../../components/ui/Card';
 import { Btn } from '../../components/ui/Btn';
 import { Spinner } from '../../components/ui/Spinner';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { TypeBadge } from '../../components/ui/TypeBadge';
+import { StatusBadge, statutStyle } from '../../components/ui/StatusBadge';
+import { formatDate } from '../../lib/format';
 import { C } from '../../lib/theme';
 import type { Tables } from '../../lib/database.types';
 import { ETAPES, calcAvancement } from '../../lib/etapes';
@@ -25,81 +29,6 @@ import { useEtapes, useToggleEtape } from './useEtapes';
 
 // Row type: base affaires row + joined clients relation
 type AffaireRow = Tables<'affaires'> & { clients: { nom: string } | null };
-
-// ---------------------------------------------------------------------------
-// Statut config (matching mockup StatusBadge map + existing app statuts)
-// ---------------------------------------------------------------------------
-
-const STATUT_BG: Record<string, { bg: string; color: string }> = {
-  'En cours':   { bg: C.warningSoft,   color: '#8B6914' },
-  'Terminé':    { bg: C.successSoft,   color: '#1E5C42' },
-  'Soldé':      { bg: C.successSoft,   color: '#1E5C42' },
-  'En attente': { bg: '#F0F0F0',       color: '#888' },
-  'Livré':      { bg: C.bgSoft,        color: '#6B5B2C' },
-  'Montage':    { bg: C.primarySoft,   color: C.primary },
-  'Finition':   { bg: C.successSoft,   color: '#1E5C42' },
-  'Dessin':     { bg: C.warningSoft,   color: '#8B6914' },
-};
-
-function statutStyle(statut: string | null) {
-  return STATUT_BG[statut ?? ''] ?? { bg: '#F0F0F0', color: '#666' };
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('fr-FR');
-}
-
-// ---------------------------------------------------------------------------
-// Type badge — mimics the mockup TypeBadge with colour-coded letter
-// ---------------------------------------------------------------------------
-
-// DB mode enum is lowercase; map to display label + colour
-const MODE_CFG: Record<string, { l: string; label: string; c: string }> = {
-  coffrage:  { l: 'C', label: 'COFFRAGE',  c: C.primary },
-  prefa:     { l: 'P', label: 'PREFA',     c: '#7B6CB5' },
-  mannequin: { l: 'M', label: 'MANNEQUIN', c: C.accent },
-  usinage:   { l: 'U', label: 'USINAGE',   c: C.success },
-  vente:     { l: 'V', label: 'VENTE',     c: C.info },
-  sateba:    { l: 'S', label: 'SATEBA',    c: '#E07B5C' },
-  decor:     { l: 'D', label: 'DÉCOR',     c: C.primaryLight },
-  autre:     { l: 'A', label: 'AUTRE',     c: C.textMuted },
-};
-
-function TypeBadge({ mode }: { mode: string | null }) {
-  const cfg = MODE_CFG[mode ?? ''] ?? { l: '?', label: mode ?? '—', c: C.textMuted };
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        className="w-7 h-7 rounded flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-        style={{ backgroundColor: cfg.c }}
-      >
-        {cfg.l}
-      </div>
-      <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: C.textMuted }}>
-        {cfg.label}
-      </span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Progress bar — matches ProgressBar from the mockup (accent colour, h-4 px)
-// ---------------------------------------------------------------------------
-
-function ProgressBar({ value, height = 4 }: { value: number; height?: number }) {
-  return (
-    <div
-      className="w-full rounded-full overflow-hidden"
-      style={{ backgroundColor: C.border, height }}
-    >
-      <div
-        className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${Math.min(value, 100)}%`, backgroundColor: C.accent }}
-      />
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Detail / timeline panel (existing functionality, kept intact)
@@ -352,7 +281,6 @@ export function AffairesPage() {
                     <tbody>
                       {filtered.map((a) => {
                         const isSelected = a.id === selectedId;
-                        const { bg: sBg, color: sColor } = statutStyle(a.statut);
                         return (
                           <tr
                             key={a.id}
@@ -392,12 +320,7 @@ export function AffairesPage() {
                             </td>
                             {/* Statut */}
                             <td className="px-4 py-3">
-                              <span
-                                className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                                style={{ color: sColor, backgroundColor: sBg }}
-                              >
-                                {a.statut ?? '—'}
-                              </span>
+                              <StatusBadge statut={a.statut} />
                             </td>
                             {/* Montant HT */}
                             <td className="px-4 py-3 text-sm font-bold font-mono" style={{ color: C.text }}>
