@@ -558,6 +558,12 @@ export default function FormulairePage() {
   // Validation + soumission (ajout / mise à jour)
   // ---------------------------------------------------------------------------
   const errors: string[] = [];
+  if (!effectiveId)
+    errors.push(
+      affairesList.length === 0
+        ? "créez d'abord une affaire (menu Affaires → Nouvelle affaire)"
+        : 'sélectionnez une affaire en haut',
+    );
   if (!form.type) errors.push('Type');
   if (!form.ref1) errors.push(isMO ? 'Catégorie MO' : 'Réf_1');
   if (!isMO && form.ref1 && !form.ref2) errors.push('Réf_2');
