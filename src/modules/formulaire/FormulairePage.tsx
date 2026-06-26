@@ -1122,6 +1122,22 @@ export default function FormulairePage() {
                 </span>
               </div>
             )}
+            {(createPiece.isError || updatePiece.isError) && (
+              <div
+                className="mt-2 p-2.5 rounded border-l-4 flex items-start gap-2 text-xs"
+                style={{ borderLeftColor: C.danger, backgroundColor: C.dangerSoft, color: '#8B2418' }}
+              >
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: C.danger }} />
+                <span>
+                  Échec de l'enregistrement :{' '}
+                  <strong>
+                    {((createPiece.error ?? updatePiece.error) as Error | null)?.message ??
+                      'erreur inconnue'}
+                  </strong>
+                  . Vérifiez vos droits (rôle) puis réessayez.
+                </span>
+              </div>
+            )}
             {editingId && (
               <button
                 onClick={resetForm}
