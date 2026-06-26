@@ -7,6 +7,7 @@ import {
   Eraser,
   Printer,
   ClipboardList,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/Badge';
@@ -1109,10 +1110,18 @@ export default function FormulairePage() {
                   <Plus size={16} /> Ajouter à la liste
                 </>
               )}
-              {!canSubmit && errors.length > 0 && (
-                <span className="font-normal text-xs">(manque : {errors.join(', ')})</span>
-              )}
             </button>
+            {!canSubmit && errors.length > 0 && (
+              <div
+                className="mt-2 p-2.5 rounded border-l-4 flex items-start gap-2 text-xs"
+                style={{ borderLeftColor: C.warning, backgroundColor: C.warningSoft, color: '#8B6914' }}
+              >
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: C.warning }} />
+                <span>
+                  Pour ajouter la pièce, renseignez encore : <strong>{errors.join(', ')}</strong>
+                </span>
+              </div>
+            )}
             {editingId && (
               <button
                 onClick={resetForm}

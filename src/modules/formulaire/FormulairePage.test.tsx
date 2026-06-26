@@ -105,4 +105,12 @@ describe('FormulairePage', () => {
       screen.getByText(/Aucune pièce saisie pour cette affaire/),
     ).toBeInTheDocument();
   });
+
+  it('liste visiblement les champs manquants quand le formulaire est incomplet', () => {
+    renderPage();
+    // Au rendu initial (aucun type choisi), l'encart d'aide doit lister ce qui manque
+    expect(
+      screen.getByText(/Pour ajouter la pièce, renseignez encore/),
+    ).toBeInTheDocument();
+  });
 });
