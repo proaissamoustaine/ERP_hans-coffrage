@@ -4,13 +4,17 @@ import { Spinner } from './components/ui/Spinner';
 import { C } from './lib/theme';
 import ProtectedRoute from './auth/ProtectedRoute';
 import { AppShell } from './components/layout/AppShell';
+import { NAV } from './components/nav';
 
 const LoginPage = lazy(() => import('./auth/LoginPage'));
 const DashboardPage = lazy(() => import('./modules/dashboard/DashboardPage'));
-const ComingSoonPage = lazy(() => import('./modules/ComingSoonPage'));
 const ClientsPage = lazy(() => import('./modules/clients/ClientsPage'));
 const DevisPage = lazy(() => import('./modules/devis/DevisPage'));
 const AffairesPage = lazy(() => import('./modules/affaires/AffairesPage'));
+const StubPage = lazy(() => import('./modules/StubPage'));
+
+/** IDs that have real page implementations */
+const BUILT_IDS = new Set(['dashboard', 'clients', 'devis', 'affaires']);
 
 function Loading() {
   return (
@@ -30,6 +34,7 @@ export default function App() {
         {/* Protected shell */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
+            {/* Dashboard (index) */}
             <Route
               index
               element={
@@ -38,11 +43,38 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="clients" element={<ProtectedRoute page="clients"><ClientsPage /></ProtectedRoute>} />
-            <Route path="devis" element={<ProtectedRoute page="devis"><DevisPage /></ProtectedRoute>} />
-            <Route path="affaires" element={<ProtectedRoute page="affaires"><AffairesPage /></ProtectedRoute>} />
-            <Route path="flashage" element={<ProtectedRoute page="flashage"><ComingSoonPage /></ProtectedRoute>} />
-            <Route path="factures" element={<ProtectedRoute page="factures"><ComingSoonPage /></ProtectedRoute>} />
+
+            {/* Built pages */}
+            <Route
+              path="clients"
+              element={<ProtectedRoute page="clients"><ClientsPage /></ProtectedRoute>}
+            />
+            <Route
+              path="devis"
+              element={<ProtectedRoute page="devis"><DevisPage /></ProtectedRoute>}
+            />
+            <Route
+              path="affaires"
+              element={<ProtectedRoute page="affaires"><AffairesPage /></ProtectedRoute>}
+            />
+
+            {/* Stub routes for every other nav item */}
+            {NAV.flatMap((section) => section.items)
+              .filter((item) => !BUILT_IDS.has(item.id))
+              .map((item) => {
+                const path = item.path.replace(/^\//, '');
+                return (
+                  <Route
+                    key={item.id}
+                    path={path}
+                    element={
+                      <ProtectedRoute page={item.id}>
+                        <StubPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                );
+              })}
           </Route>
         </Route>
 

@@ -5,7 +5,7 @@ export const ROLE_PAGES: Record<UserRole, 'all' | string[]> = {
   direction: 'all',
   compta: ['dashboard', 'clients', 'factures', 'heures', 'transport', 'rh', 'documents'],
   chef_prod: ['dashboard', 'affaires', 'chantiers', 'planning', 'formulaire', 'fiche-atelier', 'flashage', 'chutes', 'heures', 'photos', 'prix-revient', 'colisage', 'pesee', 'livraisons', 'impression', 'transport', 'stock', 'documents'],
-  bureau_etudes: ['dashboard', 'clients', 'devis', 'chiffrage', 'affaires', 'formulaire', 'photos', 'documents'],
+  bureau_etudes: ['dashboard', 'clients', 'devis', 'chiffrage-devis', 'affaires', 'formulaire', 'photos', 'documents'],
   operateur: ['flashage', 'chutes', 'heures', 'colisage', 'pesee', 'impression', 'photos'],
 };
 
