@@ -40,6 +40,24 @@ export function useCreatePiece() {
   });
 }
 
+export function useUpdatePiece() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; affaireId: string; patch: Partial<PieceInput> }) => {
+      const { dimensions, ...rest } = vars.patch;
+      const update = {
+        ...rest,
+        ...(dimensions !== undefined ? { dimensions: (dimensions ?? null) as Json | null } : {}),
+      };
+      const { error } = await supabase.from('pieces').update(update).eq('id', vars.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_d, { affaireId }) => {
+      qc.invalidateQueries({ queryKey: ['pieces', affaireId] });
+    },
+  });
+}
+
 export function useDeletePiece() {
   const qc = useQueryClient();
   return useMutation({

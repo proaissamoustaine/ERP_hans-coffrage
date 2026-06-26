@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { Plus, Trash2, ClipboardList, Calculator } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  Eraser,
+  Printer,
+  ClipboardList,
+} from 'lucide-react';
 
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Card } from '../../components/ui/Card';
-import { Field } from '../../components/ui/Field';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { Btn } from '../../components/ui/Btn';
 import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
 import { C } from '../../lib/theme';
@@ -14,141 +16,148 @@ import { C } from '../../lib/theme';
 import { useAffaires } from '../affaires/useAffaires';
 import { useCatalogue } from './useCatalogue';
 import { useTauxMO } from './useTauxMO';
-import { usePieces, useCreatePiece, useDeletePiece } from './usePieces';
-import { categories, famillesFor, matieresFor, pieceTotal } from './catalogue';
+import {
+  usePieces,
+  useCreatePiece,
+  useDeletePiece,
+  useUpdatePiece,
+} from './usePieces';
+import { famillesFor, matieresFor } from './catalogue';
+import type { PieceInput } from './pieceSchema';
 import type { Tables } from '../../lib/database.types';
 
 type PieceRow = Tables<'pieces'>;
 
-const eur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
-
 // ---------------------------------------------------------------------------
-// Formulaire Matière
+// Helpers recopiés de la maquette (App.jsx)
 // ---------------------------------------------------------------------------
 
-function FormMatiere({ affaireId }: { affaireId: string }) {
-  const { data: catalogue } = useCatalogue();
-  const createPiece = useCreatePiece();
+// Types de matière (catalogues) avec préfixe pour calcul auto de chute.
+// `matCat` correspond au champ `cat` du catalogue pour le filtrage du dropdown Réf_1.
+const TYPES_MATIERE = [
+  { id: 'CP_Filme', label: 'CP_Filmé', matCat: 'CP_Filmé', prefixe: 'P' },
+  { id: 'CP_Resineux_Autre', label: 'CP_Résineux_Autre', matCat: 'CP_Résineux_Autre', prefixe: 'P' },
+  { id: 'Bois_Resineux_Ayous', label: 'Bois_Résineux_Ayous', matCat: 'Bois_Résineux_Ayous', prefixe: 'P' },
+  { id: 'Accessoires', label: 'Accessoires', matCat: 'Accessoires', prefixe: 'A' },
+  { id: 'Visserie', label: 'Visserie', matCat: 'Visserie', prefixe: 'X' },
+  { id: 'Divers', label: 'Divers', matCat: 'Divers', prefixe: 'X' },
+  { id: 'Hors_liste', label: 'Hors liste', matCat: 'Hors_liste', prefixe: 'A' },
+  { id: 'Main_Oeuvre', label: "Main d'œuvre", matCat: 'Main_Oeuvre', prefixe: 'MO' },
+] as const;
 
-  const items = catalogue ?? [];
-  const [cat, setCat] = useState('');
-  const [famille, setFamille] = useState('');
-  const [code, setCode] = useState('');
-  const [nb, setNb] = useState('1');
-  const [long, setLong] = useState('');
-  const [larg, setLarg] = useState('');
-  const [epai, setEpai] = useState('');
+// Liste des 4 machines (onglet Liste_autres cellules E10-E13 de l'Excel).
+const MACHINES_FORMULAIRE = [
+  { id: 'STD', label: 'Standards' },
+  { id: 'CN1000', label: 'CN 1000+' },
+  { id: 'CN3', label: 'CN 3 axes' },
+  { id: 'CN5', label: 'CN 5 axes' },
+] as const;
 
-  const cats = categories(items);
-  const familles = cat ? famillesFor(items, cat) : [];
-  const matieres = cat && famille ? matieresFor(items, cat, famille) : [];
-  const matiere = matieres.find((m) => m.code === code);
+// Onglets de géométrie (TYPES_DEBIT de la maquette).
+const TYPES_DEBIT = [
+  { id: 'standard', label: 'Standard', desc: 'Rectangle simple' },
+  { id: 'type1', label: 'Type 1', desc: 'Trapèze symétrique (arrondi)' },
+  { id: 'type2', label: 'Type 2', desc: 'Trapèze asymétrique' },
+  { id: 'type3', label: 'Type 3', desc: 'Avec rives (chants)' },
+] as const;
 
-  function reset() {
-    setCode('');
-    setNb('1');
-    setLong('');
-    setLarg('');
-    setEpai('');
-  }
+// Sections de transcription (colonne droite). La MO n'a pas de schéma.
+const SECTIONS = [
+  { geom: 'standard', label: 'Standard' },
+  { geom: 'type1', label: 'Type_1' },
+  { geom: 'type2', label: 'Type_2' },
+  { geom: 'type3', label: 'Type_3' },
+  { geom: 'mo', label: "Main d'œuvre" },
+] as const;
 
-  function add() {
-    if (!matiere) return;
-    createPiece.mutate(
-      {
-        affaire_id: affaireId,
-        type: cat || 'Matiere',
-        ref1: matiere.code,
-        designation: matiere.ref ?? matiere.code,
-        matiere_code: matiere.code,
-        nb: Number(nb) || 0,
-        geometrie: 'standard',
-        dimensions: {
-          long: Number(long) || 0,
-          larg: Number(larg) || 0,
-          epai: Number(epai) || 0,
-        },
-        prix: Number(matiere.prix),
-        unite: matiere.unite ?? undefined,
-        pourcent_chute: matiere.chute,
-      },
-      { onSuccess: reset },
-    );
-  }
+// La fiche atelier (cochage) dépend de la validation → passe 2. Toujours false ici.
+const ficheValidee = false;
 
+// ---------------------------------------------------------------------------
+// État du formulaire (mirror FORM_INITIAL de la maquette)
+// ---------------------------------------------------------------------------
+
+type Dimensions = Record<string, number | string | null | undefined>;
+
+type FormState = {
+  type: string;
+  ref1: string;
+  ref2: string;
+  sectionFinie: string;
+  designation: string;
+  prix: number | null;
+  unite: string;
+  codeUnite: number | null;
+  chute: number;
+  nb: number;
+  nbHeures: number;
+  infosCompl: string;
+  machines: string;
+  geometrie: string;
+  dimensions: Dimensions;
+};
+
+const FORM_INITIAL: FormState = {
+  type: '',
+  ref1: '',
+  ref2: '',
+  sectionFinie: '',
+  designation: '',
+  prix: null,
+  unite: '',
+  codeUnite: null,
+  chute: 0,
+  nb: 1,
+  nbHeures: 1,
+  infosCompl: '',
+  machines: 'STD',
+  geometrie: 'standard',
+  dimensions: {},
+};
+
+// ---------------------------------------------------------------------------
+// Champs de saisie réutilisables pour les dimensions (typés, top-level)
+// ---------------------------------------------------------------------------
+
+function DimNumberField({
+  label,
+  value,
+  onChange,
+  suffix = 'mm',
+  readOnly = false,
+}: {
+  label: string;
+  value: number | string | null | undefined;
+  onChange?: (v: number | null) => void;
+  suffix?: string;
+  readOnly?: boolean;
+}) {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Field label="Catégorie">
-          <Select
-            value={cat}
-            onChange={(e) => {
-              setCat(e.target.value);
-              setFamille('');
-              setCode('');
-            }}
-          >
-            <option value="">—</option>
-            {cats.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Famille">
-          <Select
-            value={famille}
-            disabled={!cat}
-            onChange={(e) => {
-              setFamille(e.target.value);
-              setCode('');
-            }}
-          >
-            <option value="">—</option>
-            {familles.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Matière">
-          <Select value={code} disabled={!famille} onChange={(e) => setCode(e.target.value)}>
-            <option value="">—</option>
-            {matieres.map((m) => (
-              <option key={m.code} value={m.code}>
-                {(m.ref ?? m.code) + ' — ' + m.prix + ' ' + (m.unite ?? '')}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Field label="Nb">
-          <Input type="number" min="0" value={nb} onChange={(e) => setNb(e.target.value)} />
-        </Field>
-        <Field label="Longueur" hint="optionnel">
-          <Input type="number" min="0" value={long} onChange={(e) => setLong(e.target.value)} />
-        </Field>
-        <Field label="Largeur" hint="optionnel">
-          <Input type="number" min="0" value={larg} onChange={(e) => setLarg(e.target.value)} />
-        </Field>
-        <Field label="Épaisseur" hint="optionnel">
-          <Input type="number" min="0" value={epai} onChange={(e) => setEpai(e.target.value)} />
-        </Field>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Btn icon={Plus} onClick={add} disabled={!matiere || createPiece.isPending}>
-          Ajouter la pièce
-        </Btn>
-        {matiere && (
-          <span className="text-xs" style={{ color: C.textMuted }}>
-            Chute {matiere.chute}% · {matiere.prix} {matiere.unite ?? ''}
+    <div className="min-w-0">
+      <label
+        className="text-[10px] uppercase tracking-wider font-bold block mb-1 leading-tight whitespace-normal break-words"
+        style={{ color: C.textMuted }}
+      >
+        {label}
+      </label>
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          value={value ?? ''}
+          onChange={
+            readOnly || !onChange
+              ? undefined
+              : (e) => onChange(e.target.value === '' ? null : parseFloat(e.target.value))
+          }
+          readOnly={readOnly}
+          className={`flex-1 min-w-0 px-2 py-1.5 border rounded text-sm font-mono ${
+            readOnly ? 'bg-gray-50' : ''
+          }`}
+          style={{ borderColor: C.border }}
+        />
+        {suffix && (
+          <span className="text-xs shrink-0" style={{ color: C.textMuted }}>
+            {suffix}
           </span>
         )}
       </div>
@@ -156,226 +165,48 @@ function FormMatiere({ affaireId }: { affaireId: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Formulaire Main d'œuvre
-// ---------------------------------------------------------------------------
-
-function FormMO({ affaireId }: { affaireId: string }) {
-  const { data: taux } = useTauxMO();
-  const createPiece = useCreatePiece();
-
-  const list = taux ?? [];
-  const [code, setCode] = useState('');
-  const [heures, setHeures] = useState('1');
-
-  const t = list.find((x) => x.code === code);
-
-  function add() {
-    if (!t) return;
-    createPiece.mutate(
-      {
-        affaire_id: affaireId,
-        type: 'Main_Oeuvre',
-        ref1: t.code,
-        designation: t.des,
-        nb: Number(heures) || 0,
-        prix: Number(t.taux),
-        pourcent_chute: 0,
-      },
-      { onSuccess: () => setHeures('1') },
-    );
-  }
-
+function DimTextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: number | string | null | undefined;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Field label="Code MO">
-          <Select value={code} onChange={(e) => setCode(e.target.value)}>
-            <option value="">—</option>
-            {list.map((x) => (
-              <option key={x.code} value={x.code}>
-                {x.code + ' — ' + x.des + ' (' + x.taux + ' €/h)'}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Nb heures">
-          <Input
-            type="number"
-            min="0"
-            step="0.25"
-            value={heures}
-            onChange={(e) => setHeures(e.target.value)}
-          />
-        </Field>
-
-        <Field label="Taux horaire">
-          <Input value={t ? `${t.taux} €/h` : '—'} readOnly disabled />
-        </Field>
-      </div>
-
-      <Btn icon={Plus} onClick={add} disabled={!t || createPiece.isPending}>
-        Ajouter la MO
-      </Btn>
+    <div className="min-w-0">
+      <label
+        className="text-[10px] uppercase tracking-wider font-bold block mb-1 leading-tight whitespace-normal break-words"
+        style={{ color: C.textMuted }}
+      >
+        {label}
+      </label>
+      <input
+        type="text"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-2 py-1.5 border rounded text-sm"
+        style={{ borderColor: C.border }}
+      />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Ligne de pièce (avec mini-confirm suppression inline)
+// Helpers d'affichage
 // ---------------------------------------------------------------------------
 
-function PieceLigne({ piece, affaireId }: { piece: PieceRow; affaireId: string }) {
-  const deletePiece = useDeletePiece();
-  const [confirm, setConfirm] = useState(false);
-  const isMO = piece.type === 'Main_Oeuvre';
+const fmtDate = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleDateString('fr-FR') : '—';
 
-  return (
-    <tr style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-      <td className="px-4 py-3">
-        <div className="font-semibold text-sm" style={{ color: C.text }}>
-          {piece.designation ?? piece.ref1 ?? '—'}
-        </div>
-        <div className="text-[10px] uppercase tracking-wider mt-0.5" style={{ color: C.textMuted }}>
-          {isMO ? 'Main d’œuvre' : piece.type}
-        </div>
-      </td>
-      <td className="px-4 py-3 font-mono text-xs" style={{ color: C.textMuted }}>
-        {piece.ref1 ?? '—'}
-      </td>
-      <td className="px-4 py-3 text-sm font-mono" style={{ color: C.text }}>
-        {piece.nb}
-        {isMO ? ' h' : ''}
-      </td>
-      <td className="px-4 py-3 text-sm font-mono" style={{ color: C.text }}>
-        {piece.prix != null ? `${piece.prix} ${piece.unite ?? (isMO ? '€/h' : '')}` : '—'}
-      </td>
-      <td className="px-4 py-3 text-sm font-mono" style={{ color: C.textMuted }}>
-        {isMO ? '—' : `${piece.pourcent_chute}%`}
-      </td>
-      <td className="px-4 py-3 text-sm font-bold font-mono text-right" style={{ color: C.text }}>
-        {eur(pieceTotal(piece))}
-      </td>
-      <td className="px-4 py-3 text-right">
-        {confirm ? (
-          <span className="inline-flex items-center gap-2">
-            <Btn
-              size="sm"
-              variant="danger"
-              onClick={() =>
-                deletePiece.mutate(
-                  { id: piece.id, affaireId },
-                  { onSuccess: () => setConfirm(false) },
-                )
-              }
-            >
-              Oui
-            </Btn>
-            <Btn size="sm" variant="secondary" onClick={() => setConfirm(false)}>
-              Non
-            </Btn>
-          </span>
-        ) : (
-          <Btn size="sm" variant="ghost" icon={Trash2} onClick={() => setConfirm(true)}>
-            Supprimer
-          </Btn>
-        )}
-      </td>
-    </tr>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Liste des pièces + totaux
-// ---------------------------------------------------------------------------
-
-function ListePieces({ affaireId }: { affaireId: string }) {
-  const { data: pieces, isLoading } = usePieces(affaireId);
-  const list = (pieces ?? []) as PieceRow[];
-
-  const totalMatieres = list
-    .filter((p) => p.type !== 'Main_Oeuvre')
-    .reduce((s, p) => s + pieceTotal(p), 0);
-  const totalMO = list
-    .filter((p) => p.type === 'Main_Oeuvre')
-    .reduce((s, p) => s + pieceTotal(p), 0);
-  const totalGeneral = totalMatieres + totalMO;
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner />
-      </div>
-    );
-  }
-
-  return (
-    <Card noPadding className="overflow-hidden">
-      {list.length === 0 ? (
-        <p className="p-6 text-sm" style={{ color: C.textMuted }}>
-          Aucune pièce saisie pour cette affaire
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead style={{ backgroundColor: C.bgSoft }}>
-              <tr>
-                {['Type / Désignation', 'Réf', 'Nb', 'Prix unit.', 'Chute %', 'Total', ''].map(
-                  (h, i) => (
-                    <th
-                      key={h || i}
-                      className={`px-4 py-3 text-[10px] uppercase tracking-wider font-bold ${
-                        h === 'Total' ? 'text-right' : 'text-left'
-                      }`}
-                      style={{ color: C.textMuted, borderBottom: `1px solid ${C.border}` }}
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((p) => (
-                <PieceLigne key={p.id} piece={p} affaireId={affaireId} />
-              ))}
-            </tbody>
-            <tfoot>
-              <tr style={{ backgroundColor: C.bgSoft }}>
-                <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-right" style={{ color: C.textMuted }}>
-                  Total matières
-                </td>
-                <td className="px-4 py-2.5 text-sm font-bold font-mono text-right" style={{ color: C.text }}>
-                  {eur(totalMatieres)}
-                </td>
-                <td />
-              </tr>
-              <tr style={{ backgroundColor: C.bgSoft }}>
-                <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-right" style={{ color: C.textMuted }}>
-                  Total MO
-                </td>
-                <td className="px-4 py-2.5 text-sm font-bold font-mono text-right" style={{ color: C.text }}>
-                  {eur(totalMO)}
-                </td>
-                <td />
-              </tr>
-              <tr style={{ backgroundColor: C.primarySoft }}>
-                <td colSpan={5} className="px-4 py-3 text-xs uppercase tracking-wider font-bold text-right" style={{ color: C.primary }}>
-                  Total général
-                </td>
-                <td className="px-4 py-3 text-base font-bold font-mono text-right" style={{ color: C.primary }}>
-                  {eur(totalGeneral)}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-    </Card>
-  );
-}
+const dimStr = (d: Dimensions, key: string): string | number => {
+  const v = d[key];
+  return v == null || v === '' ? '–' : (v as string | number);
+};
 
 // ---------------------------------------------------------------------------
 // Page
@@ -383,100 +214,1017 @@ function ListePieces({ affaireId }: { affaireId: string }) {
 
 export default function FormulairePage() {
   const { data: affaires } = useAffaires();
-  const list = affaires ?? [];
+  const { data: catalogue } = useCatalogue();
+  const { data: tauxMO } = useTauxMO();
+
+  const affairesList = affaires ?? [];
+  const items = catalogue ?? [];
+  const tauxList = tauxMO ?? [];
 
   const [affaireId, setAffaireId] = useState('');
-  const [mode, setMode] = useState<'matiere' | 'mo'>('matiere');
+  const effectiveId = affaireId || (affairesList[0]?.id ?? '');
+  const affaire = affairesList.find((a) => a.id === effectiveId);
 
-  // Défaut : 1ʳᵉ affaire dès que la liste est chargée
-  const effectiveId = affaireId || (list[0]?.id ?? '');
+  const { data: piecesData, isLoading: piecesLoading } = usePieces(effectiveId || null);
+  const pieces = (piecesData ?? []) as PieceRow[];
 
-  const { data: pieces } = usePieces(effectiveId || null);
-  const pieceList = pieces ?? [];
-  const totalGeneral = pieceList.reduce((s, p) => s + pieceTotal(p as PieceRow), 0);
+  const createPiece = useCreatePiece();
+  const updatePiece = useUpdatePiece();
+  const deletePiece = useDeletePiece();
 
-  const subtitle =
-    pieceList.length > 0
-      ? `${pieceList.length} pièce${pieceList.length !== 1 ? 's' : ''} · Total ${eur(totalGeneral)}`
-      : 'Saisie des pièces d’une affaire à partir du catalogue';
+  const [form, setForm] = useState<FormState>(FORM_INITIAL);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
-  if (list.length === 0) {
+  const updateForm = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  // Reset du formulaire au changement d'affaire
+  useEffect(() => {
+    setForm(FORM_INITIAL);
+    setEditingId(null);
+    setConfirmDelete(null);
+  }, [effectiveId]);
+
+  const typeMatiere = TYPES_MATIERE.find((t) => t.id === form.type);
+  const isMO = form.type === 'Main_Oeuvre';
+
+  // Cascade : Réf_1 = familles de la catégorie, Réf_2 = matières de (cat, famille)
+  const ref1Options = typeMatiere ? famillesFor(items, typeMatiere.matCat) : [];
+  const ref2Options = typeMatiere && form.ref1 ? matieresFor(items, typeMatiere.matCat, form.ref1) : [];
+  const selectedRef2 = ref2Options.find((m) => m.code === form.ref2);
+
+  const dim = form.dimensions;
+  const setDim = (patch: Dimensions) => updateForm({ dimensions: { ...dim, ...patch } });
+
+  // ---------------------------------------------------------------------------
+  // Champs de géométrie (fidèle à renderGeometrieFields)
+  // ---------------------------------------------------------------------------
+  const renderGeometrieFields = () => {
+    if (form.geometrie === 'standard') {
+      return (
+        <div className="grid grid-cols-2 gap-3">
+          <DimNumberField label="Longueur" value={dim.long} onChange={(v) => setDim({ long: v })} />
+          <DimNumberField label="Largeur" value={dim.larg} onChange={(v) => setDim({ larg: v })} />
+          <DimNumberField label="Épaisseur" value={dim.epai} onChange={(v) => setDim({ epai: v })} />
+        </div>
+      );
+    }
+    if (form.geometrie === 'type1') {
+      return (
+        <div className="grid grid-cols-3 gap-3">
+          <DimNumberField label="Longueur A" value={dim.longA} onChange={(v) => setDim({ longA: v })} />
+          <DimNumberField label="Longueur B" value={dim.longB} onChange={(v) => setDim({ longB: v })} />
+          <DimNumberField label="Largeur" value={dim.larg} onChange={(v) => setDim({ larg: v })} />
+          <DimNumberField label="Épaisseur (auto)" value={dim.epai} onChange={(v) => setDim({ epai: v })} />
+          <DimNumberField label="Angle G (larg)" value={dim.angleGLarg} onChange={(v) => setDim({ angleGLarg: v })} />
+          <DimNumberField label="Angle G (ep)" value={dim.angleGEp} onChange={(v) => setDim({ angleGEp: v })} />
+          <div />
+          <DimNumberField label="Angle D (larg)" value={dim.angleDLarg} onChange={(v) => setDim({ angleDLarg: v })} />
+          <DimNumberField label="Angle D (ep)" value={dim.angleDEp} onChange={(v) => setDim({ angleDEp: v })} />
+        </div>
+      );
+    }
+    if (form.geometrie === 'type2') {
+      return (
+        <div className="grid grid-cols-3 gap-3">
+          <DimNumberField label="Longueur" value={dim.long} onChange={(v) => setDim({ long: v })} />
+          <DimNumberField label="Largeur G" value={dim.largG} onChange={(v) => setDim({ largG: v })} />
+          <DimNumberField label="Largeur D" value={dim.largD} onChange={(v) => setDim({ largD: v })} />
+          <DimNumberField label="Épaisseur (auto)" value={dim.epai} onChange={(v) => setDim({ epai: v })} />
+          <DimNumberField label="Angle G (larg)" value={dim.angleGLarg} onChange={(v) => setDim({ angleGLarg: v })} />
+          <DimNumberField label="Angle G (ep)" value={dim.angleGEp} onChange={(v) => setDim({ angleGEp: v })} />
+          <DimNumberField label="Angle D (larg)" value={dim.angleDLarg} onChange={(v) => setDim({ angleDLarg: v })} />
+          <DimNumberField label="Angle D (ep)" value={dim.angleDEp} onChange={(v) => setDim({ angleDEp: v })} />
+        </div>
+      );
+    }
+    if (form.geometrie === 'type3') {
+      return (
+        <div className="grid grid-cols-3 gap-3">
+          <DimNumberField label="Longueur" value={dim.long} onChange={(v) => setDim({ long: v })} />
+          <DimNumberField label="Largeur" value={dim.larg} onChange={(v) => setDim({ larg: v })} />
+          <DimNumberField label="Épaisseur (auto)" value={dim.epai} onChange={(v) => setDim({ epai: v })} />
+          <DimNumberField label="Angle G (larg)" value={dim.angleGLarg} onChange={(v) => setDim({ angleGLarg: v })} />
+          <DimNumberField label="Angle G (ep)" value={dim.angleGEp} onChange={(v) => setDim({ angleGEp: v })} />
+          <div />
+          <DimNumberField label="Angle D (larg)" value={dim.angleDLarg} onChange={(v) => setDim({ angleDLarg: v })} />
+          <DimNumberField label="Angle D (ep)" value={dim.angleDEp} onChange={(v) => setDim({ angleDEp: v })} />
+          <div />
+          <DimTextField label="Rive 1" value={dim.rive1} onChange={(v) => setDim({ rive1: v })} placeholder="R15" />
+          <DimTextField label="Rive 2" value={dim.rive2} onChange={(v) => setDim({ rive2: v })} placeholder="R20" />
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // ---------------------------------------------------------------------------
+  // Édition : recharge une pièce existante dans le formulaire
+  // ---------------------------------------------------------------------------
+  const loadPiece = (p: PieceRow) => {
+    const isMoPiece = p.type === 'Main_Oeuvre';
+    setForm({
+      type: p.type,
+      ref1: p.ref1 ?? '',
+      ref2: p.ref2 ?? '',
+      sectionFinie: p.section_finie ?? '',
+      designation: p.designation ?? '',
+      prix: p.prix,
+      unite: p.unite ?? '',
+      codeUnite: null,
+      chute: p.pourcent_chute ?? 0,
+      nb: isMoPiece ? 1 : p.nb,
+      nbHeures: isMoPiece ? p.nb : 1,
+      infosCompl: '',
+      machines: 'STD',
+      geometrie: p.geometrie ?? 'standard',
+      dimensions: (p.dimensions as Dimensions) ?? {},
+    });
+    setEditingId(p.id);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Tableau de pièces par géométrie (fidèle à renderPiecesTable)
+  // ---------------------------------------------------------------------------
+  const renderPiecesTable = (piecesSection: PieceRow[], geom: string) => {
+    // === Main d'œuvre : heures × taux ===
+    if (geom === 'mo') {
+      return (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b" style={{ borderColor: C.border, color: C.textMuted }}>
+              <th className="text-left py-1 pr-2">Code MO</th>
+              <th className="text-left py-1 pr-2">Désignation</th>
+              <th className="text-right py-1 px-1">Nb h</th>
+              <th className="text-right py-1 px-1">Taux €/h</th>
+              <th className="text-right py-1 px-1">Total €</th>
+              <th className="w-14"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {piecesSection.map((p) => {
+              const total = (p.prix ?? 0) * (p.nb ?? 0);
+              return (
+                <tr key={p.id} className="border-b hover:bg-gray-50" style={{ borderColor: C.border }}>
+                  <td className="py-1 pr-2 font-mono font-bold" style={{ color: C.accent }}>
+                    {p.ref1}
+                  </td>
+                  <td className="py-1 pr-2 truncate max-w-[180px]" title={p.designation ?? ''}>
+                    {p.designation}
+                  </td>
+                  <td className="text-right py-1 px-1 font-mono">{p.nb}</td>
+                  <td className="text-right py-1 px-1 font-mono">{p.prix?.toFixed(2)}</td>
+                  <td className="text-right py-1 px-1 font-mono font-bold" style={{ color: C.primary }}>
+                    {total.toFixed(2)}
+                  </td>
+                  <td className="text-right py-1 px-1 whitespace-nowrap">{renderRowActions(p)}</td>
+                </tr>
+              );
+            })}
+            <tr style={{ backgroundColor: C.bgWarm }}>
+              <td
+                colSpan={4}
+                className="text-right py-1 pr-2 text-[10px] uppercase tracking-wider font-bold"
+                style={{ color: C.textMuted }}
+              >
+                Total main d'œuvre
+              </td>
+              <td className="text-right py-1 px-1 font-mono font-bold text-sm" style={{ color: C.primary }}>
+                {piecesSection.reduce((s, p) => s + (p.prix ?? 0) * (p.nb ?? 0), 0).toFixed(2)} €
+              </td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      );
+    }
+
+    // === Pièces matière ===
     return (
-      <div className="space-y-5">
-        <PageHeader section="Production" title="Formulaire" />
-        <Card>
-          <p className="text-sm" style={{ color: C.textMuted }}>
-            Créez d&apos;abord une affaire pour saisir des pièces.
-          </p>
-        </Card>
-      </div>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b" style={{ borderColor: C.border, color: C.textMuted }}>
+            <th className="text-left py-1 pr-2">Matière</th>
+            <th className="text-left py-1 pr-2">Section</th>
+            <th className="text-right py-1 px-1">Nb</th>
+            {geom === 'standard' && (
+              <>
+                <th className="text-right py-1 px-1">Long</th>
+                <th className="text-right py-1 px-1">Larg</th>
+              </>
+            )}
+            {geom === 'type1' && (
+              <>
+                <th className="text-right py-1 px-1">A</th>
+                <th className="text-right py-1 px-1">B</th>
+                <th className="text-right py-1 px-1">Larg</th>
+                <th className="text-right py-1 px-1">Ang_G</th>
+                <th className="text-right py-1 px-1">Ang_D</th>
+              </>
+            )}
+            {geom === 'type2' && (
+              <>
+                <th className="text-right py-1 px-1">Long</th>
+                <th className="text-right py-1 px-1">G</th>
+                <th className="text-right py-1 px-1">D</th>
+                <th className="text-right py-1 px-1">Ang_G</th>
+                <th className="text-right py-1 px-1">Ang_D</th>
+              </>
+            )}
+            {geom === 'type3' && (
+              <>
+                <th className="text-right py-1 px-1">Long</th>
+                <th className="text-right py-1 px-1">Larg</th>
+                <th className="text-right py-1 px-1">R1</th>
+                <th className="text-right py-1 px-1">R2</th>
+              </>
+            )}
+            <th className="text-left py-1 px-1">Machine</th>
+            {ficheValidee && <th className="text-center py-1 px-1">Fait</th>}
+            <th className="w-14"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {piecesSection.map((p) => {
+            const dimP = (p.dimensions as Dimensions) ?? {};
+            return (
+              <tr key={p.id} className="border-b hover:bg-gray-50" style={{ borderColor: C.border }}>
+                <td className="py-1 pr-2 truncate max-w-[200px]" title={p.designation ?? ''}>
+                  {p.designation ||
+                    TYPES_MATIERE.find((t) => t.id === p.type)?.label ||
+                    p.type}
+                </td>
+                <td className="py-1 pr-2 font-mono">{p.section_finie}</td>
+                <td className="text-right py-1 px-1 font-bold">{p.nb}</td>
+                {geom === 'standard' && (
+                  <>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'long')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'larg')}</td>
+                  </>
+                )}
+                {geom === 'type1' && (
+                  <>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'longA')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'longB')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'larg')}</td>
+                    <td className="text-right py-1 px-1 font-mono text-[10px]">
+                      {dimStr(dimP, 'angleGLarg')}/{dimStr(dimP, 'angleGEp')}
+                    </td>
+                    <td className="text-right py-1 px-1 font-mono text-[10px]">
+                      {dimStr(dimP, 'angleDLarg')}/{dimStr(dimP, 'angleDEp')}
+                    </td>
+                  </>
+                )}
+                {geom === 'type2' && (
+                  <>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'long')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'largG')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'largD')}</td>
+                    <td className="text-right py-1 px-1 font-mono text-[10px]">
+                      {dimStr(dimP, 'angleGLarg')}/{dimStr(dimP, 'angleGEp')}
+                    </td>
+                    <td className="text-right py-1 px-1 font-mono text-[10px]">
+                      {dimStr(dimP, 'angleDLarg')}/{dimStr(dimP, 'angleDEp')}
+                    </td>
+                  </>
+                )}
+                {geom === 'type3' && (
+                  <>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'long')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'larg')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'rive1')}</td>
+                    <td className="text-right py-1 px-1 font-mono">{dimStr(dimP, 'rive2')}</td>
+                  </>
+                )}
+                {/* Machine non persistée (pas de colonne DB) — cellule vide, en-tête conservé pour fidélité */}
+                <td className="py-1 px-1 text-[10px]" />
+
+                <td className="text-right py-1 px-1 whitespace-nowrap">{renderRowActions(p)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     );
-  }
+  };
 
-  return (
-    <div className="space-y-5">
-      <PageHeader section="Production" title="Formulaire" subtitle={subtitle} />
-
-      <Card>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
-          <Field label="Affaire">
-            <Select value={effectiveId} onChange={(e) => setAffaireId(e.target.value)}>
-              {list.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.numero} · {a.clients?.nom ?? '—'}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          {/* Toggle Matière / Main d'œuvre */}
-          <div
-            className="inline-flex rounded border overflow-hidden self-end"
-            style={{ borderColor: C.border }}
+  // Actions de ligne (éditer + supprimer avec mini-confirm) — partagées MO/matière
+  const renderRowActions = (p: PieceRow) => (
+    <>
+      <button
+        onClick={() => loadPiece(p)}
+        className="p-1 hover:bg-blue-100 rounded"
+        title="Modifier"
+      >
+        <Pencil size={12} style={{ color: C.primary }} />
+      </button>
+      {confirmDelete === p.id ? (
+        <span className="ml-1 inline-flex items-center">
+          <button
+            onClick={() =>
+              deletePiece.mutate(
+                { id: p.id, affaireId: effectiveId },
+                { onSuccess: () => setConfirmDelete(null) },
+              )
+            }
+            className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
+            style={{ backgroundColor: C.danger, color: 'white' }}
           >
-            <button
-              type="button"
-              onClick={() => setMode('matiere')}
-              className="px-4 py-2 text-sm font-semibold flex items-center gap-1.5 transition-colors"
-              style={{
-                backgroundColor: mode === 'matiere' ? C.primary : 'white',
-                color: mode === 'matiere' ? 'white' : C.text,
-              }}
+            OK
+          </button>
+          <button
+            onClick={() => setConfirmDelete(null)}
+            className="ml-0.5 text-[10px] underline"
+            style={{ color: C.textMuted }}
+          >
+            non
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={() => setConfirmDelete(p.id)}
+          className="p-1 hover:bg-red-100 rounded ml-0.5"
+          title="Supprimer"
+        >
+          <Trash2 size={12} style={{ color: C.danger }} />
+        </button>
+      )}
+    </>
+  );
+
+  // ---------------------------------------------------------------------------
+  // Validation + soumission (ajout / mise à jour)
+  // ---------------------------------------------------------------------------
+  const errors: string[] = [];
+  if (!form.type) errors.push('Type');
+  if (!form.ref1) errors.push(isMO ? 'Catégorie MO' : 'Réf_1');
+  if (!isMO && form.ref1 && !form.ref2) errors.push('Réf_2');
+  if (isMO) {
+    if (!form.nbHeures || form.nbHeures <= 0) errors.push('Nb heures');
+  } else {
+    if (!form.nb || form.nb < 1) errors.push('Nb pièces');
+    if (form.geometrie === 'standard' && !dim.long) errors.push('Longueur');
+    if (form.geometrie === 'type1' && !dim.longA) errors.push('Longueur A');
+    if ((form.geometrie === 'type2' || form.geometrie === 'type3') && !dim.long) errors.push('Longueur');
+  }
+  const canSubmit = errors.length === 0 && !!effectiveId;
+  const isSubmitting = createPiece.isPending || updatePiece.isPending;
+
+  const resetForm = () => {
+    setForm(FORM_INITIAL);
+    setEditingId(null);
+  };
+
+  const handleAdd = () => {
+    if (!canSubmit) return;
+    const payload: PieceInput = {
+      affaire_id: effectiveId,
+      type: form.type,
+      ref1: form.ref1,
+      ref2: form.ref2 || undefined,
+      designation: form.designation || undefined,
+      matiere_code: form.ref2 || undefined,
+      section_finie: form.sectionFinie || undefined,
+      nb: isMO ? Number(form.nbHeures) : Number(form.nb),
+      geometrie: isMO ? 'mo' : form.geometrie,
+      dimensions: form.dimensions,
+      prix: form.prix ?? undefined,
+      unite: form.unite || undefined,
+      pourcent_chute: isMO ? 0 : selectedRef2?.chute ?? 0,
+    };
+    if (editingId) {
+      updatePiece.mutate(
+        { id: editingId, affaireId: effectiveId, patch: payload },
+        { onSuccess: resetForm },
+      );
+    } else {
+      createPiece.mutate(payload, { onSuccess: resetForm });
+    }
+  };
+
+  const handleClearAll = () => {
+    Promise.all(
+      pieces.map(
+        (p) =>
+          new Promise<void>((resolve, reject) =>
+            deletePiece.mutate({ id: p.id, affaireId: effectiveId }, { onSuccess: () => resolve(), onError: reject }),
+          ),
+      ),
+    ).finally(() => {
+      setConfirmClearAll(false);
+      resetForm();
+    });
+  };
+
+  // ---------------------------------------------------------------------------
+  // Rendu
+  // ---------------------------------------------------------------------------
+  return (
+    <div className="flex flex-col h-full -m-4 sm:-m-6 lg:-m-8">
+      {/* === Top bar === */}
+      <div
+        className="border-b px-5 py-3 flex items-center gap-4 flex-wrap"
+        style={{ borderColor: C.border, backgroundColor: 'white' }}
+      >
+        {/* Sélecteur d'affaire */}
+        <div>
+          <label
+            className="text-[10px] uppercase tracking-wider font-bold block mb-0.5"
+            style={{ color: C.textMuted }}
+          >
+            Affaire
+          </label>
+          <select
+            value={effectiveId}
+            onChange={(e) => setAffaireId(e.target.value)}
+            className="px-3 py-1.5 border rounded font-mono font-bold text-sm"
+            style={{ borderColor: C.border, color: C.primary }}
+          >
+            {affairesList.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.numero}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Bandeau infos affaire */}
+        {affaire && (
+          <div
+            className="flex items-center gap-5 px-4 py-2 rounded text-xs flex-1 flex-wrap"
+            style={{ backgroundColor: C.bgWarm, color: C.text }}
+          >
+            <div>
+              <span style={{ opacity: 0.6 }}>Client :</span>{' '}
+              <strong>{affaire.clients?.nom ?? '—'}</strong>
+            </div>
+            <div>
+              <span style={{ opacity: 0.6 }}>Chantier :</span>{' '}
+              <strong>{affaire.chantier ?? '—'}</strong>
+            </div>
+            <div>
+              <span style={{ opacity: 0.6 }}>Livraison :</span>{' '}
+              <strong>{fmtDate(affaire.date_livraison)}</strong>
+            </div>
+            <div>
+              <span style={{ opacity: 0.6 }}>Chef de prod :</span> <strong>—</strong>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            disabled
+            title="passe 2"
+            className="px-3 py-2 rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-white opacity-40 cursor-not-allowed"
+            style={{ backgroundColor: C.success }}
+          >
+            <Check size={14} /> Valider le formulaire
+          </button>
+          <button
+            disabled
+            title="passe 2"
+            className="px-3 py-2 border rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider opacity-40 cursor-not-allowed"
+            style={{ borderColor: C.border, color: C.text }}
+          >
+            <Printer size={14} /> Imprimer fiche atelier
+          </button>
+          <button
+            onClick={resetForm}
+            className="px-3 py-2 border rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider hover:bg-gray-50"
+            style={{ borderColor: C.border, color: C.text }}
+          >
+            <Eraser size={14} /> Effacer formulaire
+          </button>
+          <button
+            onClick={() => setConfirmClearAll(true)}
+            disabled={pieces.length === 0}
+            className="px-3 py-2 border rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ borderColor: C.danger, color: C.danger }}
+          >
+            <Trash2 size={14} /> Vider tout
+          </button>
+        </div>
+      </div>
+
+      {/* === Zone principale split-screen === */}
+      <div className="flex-1 grid grid-cols-1 xl:grid-cols-[55%_45%] overflow-auto">
+        {/* === COLONNE GAUCHE — SAISIE === */}
+        <div className="border-r p-5 overflow-auto" style={{ borderColor: C.border }}>
+          {/* --- Bloc 1 — Identification pièce --- */}
+          <div className="bg-white border rounded-lg p-4 mb-4" style={{ borderColor: C.border }}>
+            <h3
+              className="text-xs uppercase tracking-wider font-bold mb-3 flex items-center gap-2"
+              style={{ color: C.textMuted }}
             >
-              <ClipboardList size={14} />
-              Matière
-            </button>
+              1. Identification {isMO ? "main d'œuvre" : 'pièce'}
+              {isMO && <Badge bg={C.accent}>MO</Badge>}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label
+                  className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                  style={{ color: C.textMuted }}
+                >
+                  Type
+                </label>
+                <select
+                  value={form.type}
+                  onChange={(e) =>
+                    updateForm({
+                      type: e.target.value,
+                      ref1: '',
+                      ref2: '',
+                      designation: '',
+                      prix: null,
+                      unite: '',
+                      codeUnite: null,
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded text-sm"
+                  style={{ borderColor: C.border }}
+                >
+                  <option value="">— Choisir —</option>
+                  {TYPES_MATIERE.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                  style={{ color: C.textMuted }}
+                >
+                  {isMO ? 'Catégorie MO' : 'Réf_1 (famille)'}
+                </label>
+                <select
+                  value={form.ref1}
+                  onChange={(e) => {
+                    if (isMO) {
+                      // En mode MO : Réf_1 = code MO direct → récupère taux/désignation
+                      const t = tauxList.find((x) => x.code === e.target.value);
+                      updateForm({
+                        ref1: e.target.value,
+                        ref2: e.target.value,
+                        designation: t?.des ?? '',
+                        prix: t ? Number(t.taux) : null,
+                        unite: '€/h',
+                        codeUnite: null,
+                      });
+                    } else {
+                      // En mode matière : Réf_1 = famille → reset Réf_2 + données
+                      updateForm({
+                        ref1: e.target.value,
+                        ref2: '',
+                        designation: '',
+                        prix: null,
+                        unite: '',
+                        codeUnite: null,
+                      });
+                    }
+                  }}
+                  disabled={!form.type}
+                  className="w-full px-3 py-2 border rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  style={{ borderColor: C.border }}
+                >
+                  <option value="">—</option>
+                  {isMO
+                    ? tauxList.map((t) => (
+                        <option key={t.code} value={t.code}>
+                          {t.code}
+                        </option>
+                      ))
+                    : ref1Options.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                </select>
+              </div>
+              {!isMO && (
+                <>
+                  <div>
+                    <label
+                      className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                      style={{ color: C.textMuted }}
+                    >
+                      Réf_2 (variante)
+                    </label>
+                    <select
+                      value={form.ref2}
+                      onChange={(e) => {
+                        const m = ref2Options.find((x) => x.code === e.target.value);
+                        updateForm({
+                          ref2: e.target.value,
+                          designation: m?.ref ?? '',
+                          prix: m ? Number(m.prix) : null,
+                          unite: m?.unite ?? '',
+                          codeUnite: m?.code_unite ?? null,
+                          chute: m?.chute ?? 0,
+                          dimensions:
+                            m?.epaisseur != null
+                              ? { ...form.dimensions, epai: m.epaisseur }
+                              : form.dimensions,
+                        });
+                      }}
+                      disabled={!form.ref1}
+                      className="w-full px-3 py-2 border rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      style={{ borderColor: C.border }}
+                    >
+                      <option value="">—</option>
+                      {ref2Options.map((m) => (
+                        <option key={m.code} value={m.code}>
+                          {m.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                      style={{ color: C.textMuted }}
+                    >
+                      Section finie (mm)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="15×250"
+                      value={form.sectionFinie}
+                      onChange={(e) => updateForm({ sectionFinie: e.target.value })}
+                      className="w-full px-3 py-2 border rounded text-sm"
+                      style={{ borderColor: C.border }}
+                    />
+                  </div>
+                </>
+              )}
+              <div className="md:col-span-2">
+                <label
+                  className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                  style={{ color: C.textMuted }}
+                >
+                  Désignation (catalogue)
+                </label>
+                <input
+                  value={form.designation}
+                  readOnly
+                  className="w-full px-3 py-2 border rounded text-sm bg-gray-50"
+                  style={{ borderColor: C.border, color: C.textMuted }}
+                />
+              </div>
+
+              {/* Données du référentiel (Prix, Unité, Code unité) */}
+              {(isMO ? form.ref1 : form.ref2) && (
+                <>
+                  <div>
+                    <label
+                      className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                      style={{ color: C.textMuted }}
+                    >
+                      Prix unitaire (réf.)
+                    </label>
+                    <input
+                      value={form.prix !== null ? form.prix.toFixed(4).replace(/\.?0+$/, '') : ''}
+                      readOnly
+                      className="w-full px-3 py-2 border rounded text-sm bg-gray-50 font-mono font-bold"
+                      style={{ borderColor: C.border, color: C.primary }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label
+                        className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                        style={{ color: C.textMuted }}
+                      >
+                        Unité
+                      </label>
+                      <input
+                        value={form.unite || ''}
+                        readOnly
+                        className="w-full px-3 py-2 border rounded text-sm bg-gray-50 font-mono"
+                        style={{ borderColor: C.border }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                        style={{ color: C.textMuted }}
+                      >
+                        Code unité
+                      </label>
+                      <input
+                        value={form.codeUnite ?? ''}
+                        readOnly
+                        className="w-full px-3 py-2 border rounded text-sm bg-gray-50 font-mono text-center"
+                        style={{ borderColor: C.border }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Mode Main d'œuvre : Nb d'heures */}
+              {isMO && (
+                <div className="md:col-span-2 mt-1 pt-3 border-t" style={{ borderColor: C.border }}>
+                  <label
+                    className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                    style={{ color: C.textMuted }}
+                  >
+                    Nb d'heures
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value={form.nbHeures}
+                      onChange={(e) => updateForm({ nbHeures: parseFloat(e.target.value) || 0 })}
+                      className="w-32 px-3 py-2 border rounded text-base font-bold font-mono"
+                      style={{ borderColor: C.border }}
+                    />
+                    <span className="text-xs" style={{ color: C.textMuted }}>
+                      heures
+                    </span>
+                    {form.prix !== null && form.nbHeures > 0 && (
+                      <span className="ml-auto text-sm" style={{ color: C.textMuted }}>
+                        Total :{' '}
+                        <strong className="font-mono" style={{ color: C.primary }}>
+                          {(form.prix * form.nbHeures).toFixed(2)} €
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* --- Bloc 2 — Quantité & options (masqué en MO) --- */}
+          {!isMO && (
+            <div className="bg-white border rounded-lg p-4 mb-4" style={{ borderColor: C.border }}>
+              <h3
+                className="text-xs uppercase tracking-wider font-bold mb-3"
+                style={{ color: C.textMuted }}
+              >
+                2. Quantité & options
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label
+                    className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                    style={{ color: C.textMuted }}
+                  >
+                    Nb pièces
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.nb}
+                    onChange={(e) => updateForm({ nb: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3 py-2 border rounded text-sm font-bold font-mono"
+                    style={{ borderColor: C.border }}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label
+                    className="text-[10px] uppercase tracking-wider font-bold block mb-1"
+                    style={{ color: C.textMuted }}
+                  >
+                    Infos complémentaires
+                  </label>
+                  <input
+                    type="text"
+                    value={form.infosCompl}
+                    onChange={(e) => updateForm({ infosCompl: e.target.value })}
+                    className="w-full px-3 py-2 border rounded text-sm"
+                    style={{ borderColor: C.border }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- Bloc 3 — Géométrie (masqué en MO) --- */}
+          {!isMO && (
+            <div className="bg-white border rounded-lg p-4 mb-4" style={{ borderColor: C.border }}>
+              <h3
+                className="text-xs uppercase tracking-wider font-bold mb-3"
+                style={{ color: C.textMuted }}
+              >
+                3. Géométrie
+              </h3>
+
+              {/* Onglets */}
+              <div className="flex border-b mb-4" style={{ borderColor: C.border }}>
+                {TYPES_DEBIT.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() =>
+                      updateForm({
+                        geometrie: t.id,
+                        dimensions: dim.epai != null ? { epai: dim.epai } : {},
+                      })
+                    }
+                    className={`px-4 py-2 text-sm border-b-2 transition-colors ${
+                      form.geometrie === t.id ? 'font-bold' : ''
+                    }`}
+                    style={{
+                      borderBottomColor: form.geometrie === t.id ? C.primary : 'transparent',
+                      color: form.geometrie === t.id ? C.primary : C.textMuted,
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Contenu onglet actif */}
+              <div className="flex gap-4 items-start">
+                <div className="flex-1 min-w-0">
+                  {renderGeometrieFields()}
+                  <div className="mt-2 text-[10px]" style={{ color: C.textMuted }}>
+                    {TYPES_DEBIT.find((t) => t.id === form.geometrie)?.desc}
+                  </div>
+                </div>
+              </div>
+
+              {/* Machines (1 par géométrie) */}
+              <div className="mt-4 pt-3 border-t" style={{ borderColor: C.border }}>
+                <label
+                  className="text-[10px] uppercase tracking-wider font-bold block mb-1.5"
+                  style={{ color: C.textMuted }}
+                >
+                  Machines (pour {TYPES_DEBIT.find((t) => t.id === form.geometrie)?.label ?? form.geometrie})
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {MACHINES_FORMULAIRE.map((m) => (
+                    <label
+                      key={m.id}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-xs cursor-pointer transition-colors ${
+                        form.machines === m.id ? 'font-bold' : ''
+                      }`}
+                      style={{
+                        borderColor: form.machines === m.id ? C.primary : C.border,
+                        backgroundColor: form.machines === m.id ? C.primaryLight + '20' : 'white',
+                        color: form.machines === m.id ? C.primary : C.text,
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="machines"
+                        checked={form.machines === m.id}
+                        onChange={() => updateForm({ machines: m.id })}
+                        className="sr-only"
+                      />
+                      {m.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- Validation + bouton principal Ajouter / Mettre à jour --- */}
+          <div className="mb-4">
             <button
-              type="button"
-              onClick={() => setMode('mo')}
-              className="px-4 py-2 text-sm font-semibold flex items-center gap-1.5 transition-colors border-l"
+              onClick={handleAdd}
+              disabled={!canSubmit || isSubmitting}
+              className="w-full px-4 py-3 rounded font-bold uppercase tracking-wider text-sm transition-colors flex items-center justify-center gap-2"
               style={{
-                backgroundColor: mode === 'mo' ? C.primary : 'white',
-                color: mode === 'mo' ? 'white' : C.text,
-                borderColor: C.border,
+                backgroundColor: canSubmit ? (editingId ? C.accent : C.success) : C.border,
+                color: canSubmit ? 'white' : C.textMuted,
+                cursor: canSubmit ? 'pointer' : 'not-allowed',
               }}
+              title={!canSubmit ? `Champs manquants : ${errors.join(', ')}` : ''}
             >
-              <Calculator size={14} />
-              Main d&apos;œuvre
+              {editingId ? (
+                <>
+                  <Pencil size={16} /> Mettre à jour la pièce
+                </>
+              ) : (
+                <>
+                  <Plus size={16} /> Ajouter à la liste
+                </>
+              )}
+              {!canSubmit && errors.length > 0 && (
+                <span className="font-normal text-xs">(manque : {errors.join(', ')})</span>
+              )}
             </button>
+            {editingId && (
+              <button
+                onClick={resetForm}
+                className="w-full mt-2 px-3 py-1.5 text-xs underline"
+                style={{ color: C.textMuted }}
+              >
+                Annuler la modification
+              </button>
+            )}
           </div>
         </div>
-      </Card>
 
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <Badge bg={C.accentSoft} color={C.primary}>
-            {mode === 'matiere' ? 'Nouvelle matière' : 'Nouvelle main d’œuvre'}
-          </Badge>
-        </div>
-        {mode === 'matiere' ? (
-          <FormMatiere affaireId={effectiveId} />
-        ) : (
-          <FormMO affaireId={effectiveId} />
+        {/* === Modale confirmation Vider tout === */}
+        {confirmClearAll && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          >
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+              <h3 className="text-lg font-bold mb-2" style={{ color: C.danger }}>
+                Vider toute la liste ?
+              </h3>
+              <p className="text-sm mb-5" style={{ color: C.textMuted }}>
+                Vous êtes sur le point de supprimer <strong>{pieces.length}</strong> pièce
+                {pieces.length > 1 ? 's' : ''} de l'affaire {affaire?.numero}. Cette action est
+                irréversible.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setConfirmClearAll(false)}
+                  className="px-4 py-2 border rounded text-sm font-bold"
+                  style={{ borderColor: C.border, color: C.text }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  disabled={deletePiece.isPending}
+                  className="px-4 py-2 rounded text-sm font-bold text-white disabled:opacity-50"
+                  style={{ backgroundColor: C.danger }}
+                >
+                  Confirmer la suppression
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-      </Card>
 
-      <ListePieces affaireId={effectiveId} />
+        {/* === COLONNE DROITE — TRANSCRIPTION LIVE === */}
+        <div className="p-5 overflow-auto" style={{ backgroundColor: C.bgWarm }}>
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              className="text-sm uppercase tracking-wider font-bold"
+              style={{ color: C.textMuted }}
+            >
+              Transcription · fiche atelier
+            </h2>
+            <Badge bg={C.primary}>
+              {pieces.length} pièce{pieces.length > 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {piecesLoading ? (
+            <div className="flex justify-center py-12">
+              <Spinner />
+            </div>
+          ) : pieces.length === 0 ? (
+            <div
+              className="bg-white border-2 border-dashed rounded-lg p-8 text-center"
+              style={{ borderColor: C.border }}
+            >
+              <ClipboardList size={48} className="mx-auto mb-3" style={{ color: C.textMuted }} />
+              <p className="text-sm mb-4" style={{ color: C.textMuted }}>
+                Aucune pièce saisie pour cette affaire.
+                <br />
+                Sélectionnez un type de géométrie à gauche pour commencer.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {SECTIONS.map((section) => {
+                const piecesSection = pieces.filter(
+                  (p) => (p.geometrie ?? 'standard') === section.geom,
+                );
+                if (piecesSection.length === 0) return null;
+                return (
+                  <div
+                    key={section.geom}
+                    className="bg-white rounded-lg border p-4"
+                    style={{ borderColor: C.border }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3
+                          className="text-base font-bold mb-2 flex items-center gap-2"
+                          style={{ color: C.primary }}
+                        >
+                          {section.label}
+                          <Badge>{piecesSection.length}</Badge>
+                        </h3>
+                        <div className="overflow-x-auto">
+                          {renderPiecesTable(piecesSection, section.geom)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
