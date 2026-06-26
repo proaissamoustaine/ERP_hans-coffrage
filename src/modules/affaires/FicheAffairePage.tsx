@@ -14,6 +14,13 @@ import {
   Phone,
   UserCog,
   Calendar,
+  Camera,
+  Calculator,
+  FileText,
+  FileSpreadsheet,
+  PackageCheck,
+  Receipt,
+  Download,
 } from 'lucide-react';
 
 import { Card } from '../../components/ui/Card';
@@ -571,13 +578,130 @@ function FicheContent({ affaire, tab, setTab }: FicheContentProps) {
             </div>
           )}
 
-          {(tab === 'heures' ||
-            tab === 'pr' ||
-            tab === 'livraisons' ||
-            tab === 'photos' ||
-            tab === 'documents') && (
-            <div className="text-sm" style={{ color: C.textMuted }}>
-              (contenu en cours)
+          {tab === 'heures' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="text-xs uppercase tracking-wider font-bold" style={{ color: C.textMuted }}>
+                  Répartition des heures
+                </div>
+                <Badge bg={C.accentSoft} color="#8B6914">Démo</Badge>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-3 rounded text-center" style={{ backgroundColor: '#E5EBE9' }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: C.primary }}>Heures DESSIN</div>
+                  <div className="text-xl font-bold font-mono mt-1" style={{ color: C.primary }}>47,5h</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: C.textMuted }}>BEPE+BEPD+BEBA+BEAA+BECN</div>
+                </div>
+                <div className="p-3 rounded text-center" style={{ backgroundColor: C.warningSoft }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#8B6914' }}>Heures MACHINE</div>
+                  <div className="text-xl font-bold font-mono mt-1" style={{ color: '#8B6914' }}>32,0h</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: C.textMuted }}>CADE + CACN</div>
+                </div>
+                <div className="p-3 rounded text-center" style={{ backgroundColor: C.successSoft }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: C.success }}>Heures MONTAGE</div>
+                  <div className="text-xl font-bold font-mono mt-1" style={{ color: C.success }}>34,5h</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: C.textMuted }}>CAF+CATT+CAMF+CAMSP+CAPP</div>
+                </div>
+                <div className="p-3 rounded text-center" style={{ backgroundColor: C.infoSoft }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: C.info }}>AUTRES</div>
+                  <div className="text-xl font-bold font-mono mt-1" style={{ color: C.info }}>6,0h</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: C.textMuted }}>CAC + CALI</div>
+                </div>
+              </div>
+              <div className="p-4 rounded border" style={{ borderColor: C.border }}>
+                <div className="text-xs uppercase tracking-wider font-bold mb-2" style={{ color: C.textMuted }}>Coût horaire de l'affaire</div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-[10px]" style={{ color: C.textMuted }}>Total heures</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: C.text }}>120,0 h</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px]" style={{ color: C.textMuted }}>Montant HT / Total heures</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: C.primary }}>320,83 €/h</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px]" style={{ color: C.textMuted }}>Coût horaire prod seul</div>
+                    <div className="text-lg font-bold font-mono" style={{ color: C.accent }}>534,72 €/h</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'pr' && (
+            <div className="text-center py-8">
+              <Calculator size={48} className="mx-auto mb-3" style={{ color: C.textMuted }} />
+              <p className="text-sm" style={{ color: C.textMuted }}>
+                Aucune pièce saisie pour cette affaire — le PR ne peut pas être calculé.
+              </p>
+              <Link
+                to="/formulaire"
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider text-white"
+                style={{ backgroundColor: C.accent }}
+              >
+                <ClipboardList size={12} />Saisir les pièces
+              </Link>
+            </div>
+          )}
+
+          {tab === 'livraisons' && (
+            <div className="text-center py-8 text-sm" style={{ color: C.textMuted }}>
+              Aucune livraison enregistrée pour cette affaire
+            </div>
+          )}
+
+          {tab === 'photos' && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="text-xs uppercase tracking-wider font-bold" style={{ color: C.textMuted }}>
+                  Galerie photos
+                </div>
+                <Badge bg={C.accentSoft} color="#8B6914">Démo</Badge>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {([1,2,3,4,5,6,7,8] as const).map(i => (
+                  <div key={i} className="aspect-video rounded overflow-hidden relative" style={{ backgroundColor: C.bgSoft }}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Camera size={28} style={{ color: C.textLight }} />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-1.5 text-[9px] font-mono" style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: 'white' }}>
+                      {(['Dessin','Débit','Débit','Montage','Montage','Finition','Finition','Livraison'] as const)[i-1]} · 2025-1{i}-{10+i}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="text-center">
+                <Btn variant="secondary" icon={Camera} title="à venir">+ Ajouter photos</Btn>
+                <div className="text-xs mt-2" style={{ color: C.textMuted }}>
+                  Galerie classée par étape · Galerie globale par typologie depuis le module Photos
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'documents' && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="text-xs uppercase tracking-wider font-bold" style={{ color: C.textMuted }}>
+                  Documents affaire
+                </div>
+                <Badge bg={C.accentSoft} color="#8B6914">Démo</Badge>
+              </div>
+              {([
+                { ico: FileText, label: 'Devis DEV-2026-042', date: '15/10/2025' },
+                { ico: Calculator, label: 'Chiffrage CHF-2026-018', date: '10/10/2025' },
+                { ico: FileSpreadsheet, label: 'PR initial Excel', date: '10/10/2025' },
+                { ico: FileText, label: 'Bon de commande client', date: '20/10/2025' },
+                { ico: PackageCheck, label: 'BL livraison LIV-2026-038', date: '22/12/2025' },
+                { ico: Receipt, label: 'Facture FAC-2026-118', date: '25/04/2026' },
+              ] as const).map((d, i) => (
+                <div key={i} className="p-3 border rounded flex items-center gap-3 cursor-default" style={{ borderColor: C.border }}>
+                  <d.ico size={18} style={{ color: C.primary }} />
+                  <div className="flex-1 text-sm font-semibold" style={{ color: C.text }}>{d.label}</div>
+                  <div className="text-xs font-mono" style={{ color: C.textMuted }}>{d.date}</div>
+                  <Download size={14} style={{ color: C.textMuted }} />
+                </div>
+              ))}
             </div>
           )}
         </div>

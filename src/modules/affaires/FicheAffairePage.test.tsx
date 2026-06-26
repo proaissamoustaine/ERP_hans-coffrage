@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('./useAffaires', () => ({
@@ -52,5 +53,26 @@ describe('FicheAffairePage', () => {
     // « Montage atelier » est à la fois une étape du cycle et une sous-étape.
     expect(screen.getAllByText('Montage atelier').length).toBeGreaterThan(0);
     expect(screen.getByText('*C26-0624-01*')).toBeInTheDocument();
+  });
+
+  it("onglet Prix de revient affiche l'état vide honnête, onglet Heures affiche le badge Démo", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/affaires/a1']}>
+        <Routes>
+          <Route path="/affaires/:id" element={<FicheAffairePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Cliquer sur l'onglet « Prix de revient »
+    const tabPR = screen.getByRole('button', { name: /Prix de revient/i });
+    await user.click(tabPR);
+    expect(screen.getByText(/Aucune pièce saisie/)).toBeInTheDocument();
+
+    // Cliquer sur l'onglet « Heures »
+    const tabHeures = screen.getByRole('button', { name: /^Heures$/i });
+    await user.click(tabHeures);
+    expect(screen.getAllByText('Démo').length).toBeGreaterThan(0);
   });
 });
