@@ -11,6 +11,7 @@ const DashboardPage = lazy(() => import('./modules/dashboard/DashboardPage'));
 const ClientsPage = lazy(() => import('./modules/clients/ClientsPage'));
 const DevisPage = lazy(() => import('./modules/devis/DevisPage'));
 const AffairesPage = lazy(() => import('./modules/affaires/AffairesPage'));
+const FicheAffairePage = lazy(() => import('./modules/affaires/FicheAffairePage'));
 const StubPage = lazy(() => import('./modules/StubPage'));
 
 /** IDs that have real page implementations */
@@ -56,6 +57,10 @@ export default function App() {
             <Route
               path="affaires"
               element={<ProtectedRoute page="affaires"><AffairesPage /></ProtectedRoute>}
+            />
+            <Route
+              path="affaires/:id"
+              element={<ProtectedRoute page="affaires"><FicheAffairePage /></ProtectedRoute>}
             />
 
             {/* Stub routes for every other nav item */}
