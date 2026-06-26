@@ -80,7 +80,19 @@ function ModalNouveauClient({ open, onClose }: ModalNouveauClientProps) {
     formState: { errors },
   } = useForm<ClientInput>({
     resolver: zodResolver(clientSchema),
-    defaultValues: { nom: '', type: '', ville: '', contact: '', tel: '', email: '' },
+    defaultValues: {
+      nom: '',
+      type: '',
+      siret: '',
+      tva_intracom: '',
+      pays: 'France',
+      adresse: '',
+      code_postal: '',
+      ville: '',
+      contact: '',
+      tel: '',
+      email: '',
+    },
   });
 
   function onSubmit(values: ClientInput) {
@@ -137,6 +149,37 @@ function ModalNouveauClient({ open, onClose }: ModalNouveauClientProps) {
             <option value="USINAGE">USINAGE</option>
             <option value="Autre">Autre</option>
           </Select>
+        </Field>
+
+        {/* SIRET */}
+        <Field label="SIRET" error={errors.siret?.message}>
+          <Input {...register('siret')} placeholder="14 chiffres" />
+        </Field>
+
+        {/* N° TVA intracom */}
+        <Field label="N° TVA intracom" error={errors.tva_intracom?.message}>
+          <Input {...register('tva_intracom')} placeholder="FR XX XXXXXXXXX" />
+        </Field>
+
+        {/* Pays */}
+        <Field label="Pays" error={errors.pays?.message}>
+          <Select {...register('pays')}>
+            <option value="France">France</option>
+            <option value="Belgique">Belgique</option>
+            <option value="Luxembourg">Luxembourg</option>
+            <option value="Suisse">Suisse</option>
+            <option value="Allemagne">Allemagne</option>
+          </Select>
+        </Field>
+
+        {/* Adresse — full width */}
+        <Field label="Adresse" full error={errors.adresse?.message}>
+          <Input {...register('adresse')} placeholder="N° et nom de rue" />
+        </Field>
+
+        {/* Code postal */}
+        <Field label="Code postal" error={errors.code_postal?.message}>
+          <Input {...register('code_postal')} placeholder="88540" />
         </Field>
 
         {/* Ville */}

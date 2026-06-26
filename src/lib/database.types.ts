@@ -220,34 +220,49 @@ export type Database = {
       }
       clients: {
         Row: {
+          adresse: string | null
+          code_postal: string | null
           contact: string | null
           created_at: string
           email: string | null
           id: string
           nom: string
+          pays: string | null
+          siret: string | null
           tel: string | null
+          tva_intracom: string | null
           type: string | null
           updated_at: string | null
           ville: string | null
         }
         Insert: {
+          adresse?: string | null
+          code_postal?: string | null
           contact?: string | null
           created_at?: string
           email?: string | null
           id?: string
           nom: string
+          pays?: string | null
+          siret?: string | null
           tel?: string | null
+          tva_intracom?: string | null
           type?: string | null
           updated_at?: string | null
           ville?: string | null
         }
         Update: {
+          adresse?: string | null
+          code_postal?: string | null
           contact?: string | null
           created_at?: string
           email?: string | null
           id?: string
           nom?: string
+          pays?: string | null
+          siret?: string | null
           tel?: string | null
+          tva_intracom?: string | null
           type?: string | null
           updated_at?: string | null
           ville?: string | null
