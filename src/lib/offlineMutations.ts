@@ -136,12 +136,14 @@ export type PeserColisVars = {
 export async function insertColis(sb: SupabaseClient, input: CreerColisInput): Promise<void> {
   const { error } = await sb.from('colis').upsert(input, { onConflict: 'id', ignoreDuplicates: true });
   if (error) throw new Error(error.message);
-  // Déclenche l'étape colisage (existe toujours — semée à la création de l'affaire).
+  // Déclenche l'étape colisage. Upsert sur la contrainte unique (affaire_id, etape) :
+  // marque l'étape faite si elle existe, l'insère sinon (robuste aux affaires sans étapes complètes).
   const { error: e2 } = await sb
     .from('etapes_affaire')
-    .update({ fait: true, date: new Date().toISOString() })
-    .eq('affaire_id', input.affaire_id)
-    .eq('etape', 'colisage');
+    .upsert(
+      { affaire_id: input.affaire_id, etape: 'colisage', fait: true, date: new Date().toISOString() },
+      { onConflict: 'affaire_id,etape' },
+    );
   if (e2) throw new Error(e2.message);
 }
 

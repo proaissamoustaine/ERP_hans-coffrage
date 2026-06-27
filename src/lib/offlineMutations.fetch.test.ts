@@ -97,24 +97,23 @@ describe('reutiliserChuteDb', () => {
 });
 
 describe('insertColis', () => {
-  it('upsert colis idempotent + update etape colisage', async () => {
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    const eqEtape2 = vi.fn().mockResolvedValue({ error: null });
-    const eqEtape1 = vi.fn(() => ({ eq: eqEtape2 }));
-    const update = vi.fn(() => ({ eq: eqEtape1 }));
-    const from = vi.fn((t: string) => (t === 'colis' ? { upsert } : { update }));
+  it('upsert colis idempotent + upsert etape colisage (onConflict affaire_id,etape)', async () => {
+    const upsertColis = vi.fn().mockResolvedValue({ error: null });
+    const upsertEtape = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn((t: string) => (t === 'colis' ? { upsert: upsertColis } : { upsert: upsertEtape }));
     await insertColis({ from } as never, {
       id: 'k1', affaire_id: 'a', numero: 1, longueur: 100, largeur: 80, hauteur: 50, poids: 430,
     });
     expect(from).toHaveBeenCalledWith('colis');
-    expect(upsert).toHaveBeenCalledWith(
+    expect(upsertColis).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'k1', numero: 1 }),
       { onConflict: 'id', ignoreDuplicates: true },
     );
     expect(from).toHaveBeenCalledWith('etapes_affaire');
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({ fait: true }));
-    expect(eqEtape1).toHaveBeenCalledWith('affaire_id', 'a');
-    expect(eqEtape2).toHaveBeenCalledWith('etape', 'colisage');
+    expect(upsertEtape).toHaveBeenCalledWith(
+      expect.objectContaining({ affaire_id: 'a', etape: 'colisage', fait: true }),
+      { onConflict: 'affaire_id,etape' },
+    );
   });
 });
 
