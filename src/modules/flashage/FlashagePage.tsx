@@ -130,6 +130,7 @@ export default function FlashagePage() {
   const arreterPointage = () => {
     if (selAffaire && selTache && startTime && operateurId) {
       flasher.mutate({
+        id: crypto.randomUUID(),
         affaire_id: selAffaire.id,
         code_tache: selTache.code,
         operateur_id: operateurId,

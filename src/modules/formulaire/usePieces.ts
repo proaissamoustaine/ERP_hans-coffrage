@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import type { Json } from '../../lib/database.types';
 import type { PieceInput } from './pieceSchema';
+import type { PieceFaitVars } from '../../lib/offlineMutations';
 
 export async function fetchPieces(sb: SupabaseClient, affaireId: string) {
   const { data, error } = await sb
@@ -71,24 +72,10 @@ export function useDeletePiece() {
   });
 }
 
+// La mutationFn vient de setMutationDefaults(['cocher-piece']) (offlineMutations.ts)
+// → cochage rejouable après reload hors-ligne. Variables : { id, fait, faitPar, affaireId }.
 export function useTogglePieceFait() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (vars: { id: string; fait: boolean; faitPar: string | null; affaireId: string }) => {
-      const { error } = await supabase
-        .from('pieces')
-        .update({
-          fait: vars.fait,
-          fait_par: vars.fait ? vars.faitPar : null,
-          fait_date: vars.fait ? new Date().toISOString() : null,
-        })
-        .eq('id', vars.id);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: (_d, { affaireId }) => {
-      qc.invalidateQueries({ queryKey: ['pieces', affaireId] });
-    },
-  });
+  return useMutation<void, Error, PieceFaitVars>({ mutationKey: ['cocher-piece'] });
 }
 
 /**
