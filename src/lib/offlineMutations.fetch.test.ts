@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { upsertFlash, updatePieceFait, registerOfflineMutationDefaults, insertChute, reutiliserChuteDb } from './offlineMutations';
+import { upsertFlash, updatePieceFait, registerOfflineMutationDefaults, insertChute, reutiliserChuteDb, insertColis, peserColis } from './offlineMutations';
 
 describe('upsertFlash', () => {
   it('upsert idempotent sur la PK id (ignoreDuplicates)', async () => {
@@ -93,5 +93,39 @@ describe('reutiliserChuteDb', () => {
       expect.objectContaining({ id: 'c2', issu_de: 'c1', statut: 'disponible', longueur: 400 }),
       { onConflict: 'id', ignoreDuplicates: true },
     );
+  });
+});
+
+describe('insertColis', () => {
+  it('upsert colis idempotent + update etape colisage', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const eqEtape2 = vi.fn().mockResolvedValue({ error: null });
+    const eqEtape1 = vi.fn(() => ({ eq: eqEtape2 }));
+    const update = vi.fn(() => ({ eq: eqEtape1 }));
+    const from = vi.fn((t: string) => (t === 'colis' ? { upsert } : { update }));
+    await insertColis({ from } as never, {
+      id: 'k1', affaire_id: 'a', numero: 1, longueur: 100, largeur: 80, hauteur: 50, poids: 430,
+    });
+    expect(from).toHaveBeenCalledWith('colis');
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'k1', numero: 1 }),
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
+    expect(from).toHaveBeenCalledWith('etapes_affaire');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ fait: true }));
+    expect(eqEtape1).toHaveBeenCalledWith('affaire_id', 'a');
+    expect(eqEtape2).toHaveBeenCalledWith('etape', 'colisage');
+  });
+});
+
+describe('peserColis', () => {
+  it('update poids (+ dims si fournies) par id', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ update }));
+    await peserColis({ from } as never, { id: 'k1', poids: 860, longueur: 182 });
+    expect(from).toHaveBeenCalledWith('colis');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ poids: 860, longueur: 182 }));
+    expect(eq).toHaveBeenCalledWith('id', 'k1');
   });
 });

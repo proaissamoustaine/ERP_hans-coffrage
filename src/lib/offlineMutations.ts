@@ -114,6 +114,46 @@ export async function reutiliserChuteDb(sb: SupabaseClient, vars: ReutiliserChut
   }
 }
 
+export type CreerColisInput = {
+  id: string; // uuid client → idempotence
+  affaire_id: string;
+  numero: number;
+  longueur: number;
+  largeur: number;
+  hauteur: number;
+  poids: number;
+};
+
+export type PeserColisVars = {
+  id: string;
+  affaireId?: string;
+  poids: number;
+  longueur?: number;
+  largeur?: number;
+  hauteur?: number;
+};
+
+export async function insertColis(sb: SupabaseClient, input: CreerColisInput): Promise<void> {
+  const { error } = await sb.from('colis').upsert(input, { onConflict: 'id', ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+  // Déclenche l'étape colisage (existe toujours — semée à la création de l'affaire).
+  const { error: e2 } = await sb
+    .from('etapes_affaire')
+    .update({ fait: true, date: new Date().toISOString() })
+    .eq('affaire_id', input.affaire_id)
+    .eq('etape', 'colisage');
+  if (e2) throw new Error(e2.message);
+}
+
+export async function peserColis(sb: SupabaseClient, vars: PeserColisVars): Promise<void> {
+  const patch: Record<string, number> = { poids: vars.poids };
+  if (vars.longueur != null) patch.longueur = vars.longueur;
+  if (vars.largeur != null) patch.largeur = vars.largeur;
+  if (vars.hauteur != null) patch.hauteur = vars.hauteur;
+  const { error } = await sb.from('colis').update(patch).eq('id', vars.id);
+  if (error) throw new Error(error.message);
+}
+
 /**
  * Enregistre les mutationFn par défaut au démarrage. Indispensable pour que les
  * mutations persistées (mises en file hors-ligne) retrouvent leur fonction après un reload.
@@ -139,5 +179,18 @@ export function registerOfflineMutationDefaults(qc: QueryClient): void {
   qc.setMutationDefaults(['reutiliser-chute'], {
     mutationFn: (vars: ReutiliserChuteVars) => reutiliserChuteDb(supabase, vars),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['chutes'] }),
+  });
+  qc.setMutationDefaults(['creer-colis'], {
+    mutationFn: (input: CreerColisInput) => insertColis(supabase, input),
+    onSuccess: (_d, input) => {
+      const i = input as CreerColisInput;
+      qc.invalidateQueries({ queryKey: ['colis'] });
+      qc.invalidateQueries({ queryKey: ['etapes', i.affaire_id] });
+      qc.invalidateQueries({ queryKey: ['affaires'] });
+    },
+  });
+  qc.setMutationDefaults(['peser-colis'], {
+    mutationFn: (vars: PeserColisVars) => peserColis(supabase, vars),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['colis'] }),
   });
 }
