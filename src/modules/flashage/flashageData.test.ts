@@ -73,6 +73,14 @@ describe('groupTaches', () => {
     ]);
     expect(g[0].codes.map((c) => c.code)).toEqual(['CAC', 'CAF']);
   });
+
+  it('place les groupes inconnus de ORDRE_GROUPES à la fin', () => {
+    const rows: TacheRow[] = [
+      { code: 'ZZ', label: 'Inconnu', groupe: 'Groupe hors liste', categorie_heures: null, facturable: false },
+      { code: 'CAC', label: 'Coffrage', groupe: ORDRE_GROUPES[0], categorie_heures: 'MONTAGE', facturable: true },
+    ];
+    expect(groupTaches(rows).map((x) => x.groupe)).toEqual([ORDRE_GROUPES[0], 'Groupe hors liste']);
+  });
 });
 
 describe('estFlashable', () => {
