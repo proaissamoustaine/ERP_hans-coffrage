@@ -13,7 +13,7 @@ const channel = vi.fn(() => ({ on, subscribe }));
 const removeChannel = vi.fn();
 
 vi.mock('./supabase', () => ({
-  supabase: { channel: (...a: unknown[]) => channel(...a), removeChannel: (...a: unknown[]) => removeChannel(...a) },
+  supabase: { channel: () => channel(), removeChannel: () => removeChannel() },
 }));
 
 import { useRealtimeTable } from './useRealtimeTable';
