@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { upsertFlash, updatePieceFait, registerOfflineMutationDefaults } from './offlineMutations';
+import { upsertFlash, updatePieceFait, registerOfflineMutationDefaults, insertChute, reutiliserChuteDb } from './offlineMutations';
 
 describe('upsertFlash', () => {
   it('upsert idempotent sur la PK id (ignoreDuplicates)', async () => {
@@ -48,5 +48,50 @@ describe('registerOfflineMutationDefaults', () => {
     registerOfflineMutationDefaults(qc);
     expect(qc.getMutationDefaults(['flasher-heures']).mutationFn).toBeInstanceOf(Function);
     expect(qc.getMutationDefaults(['cocher-piece']).mutationFn).toBeInstanceOf(Function);
+  });
+});
+
+describe('insertChute', () => {
+  it('upsert idempotent statut disponible', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn(() => ({ upsert }));
+    await insertChute({ from } as never, {
+      id: 'c1', matiere_code: 'M', designation: 'D', cat: 'CP', longueur: 1000, largeur: 500,
+      epaisseur: 15, prix_unit: 10, unite: '€/U', affaire_origine: 'a', operateur_id: 'u',
+    });
+    expect(from).toHaveBeenCalledWith('chutes');
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'c1', statut: 'disponible' }),
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
+  });
+});
+
+describe('reutiliserChuteDb', () => {
+  it('totale : update statut consommee, pas de reste', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq }));
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn(() => ({ update, upsert }));
+    await reutiliserChuteDb({ from } as never, { id: 'c1', affaireConsoId: 'a2', mode: 'totale', resteJete: false });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ statut: 'consommee', mode_reutilisation: 'totale' }));
+    expect(eq).toHaveBeenCalledWith('id', 'c1');
+    expect(upsert).not.toHaveBeenCalled();
+  });
+  it('partielle + reste exploitable : update reutilisee_partiel + upsert reste', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq }));
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn(() => ({ update, upsert }));
+    await reutiliserChuteDb({ from } as never, {
+      id: 'c1', affaireConsoId: 'a2', mode: 'partielle', resteJete: false,
+      reste: { id: 'c2', longueur: 400, largeur: 300 },
+      source: { matiere_code: 'M', designation: 'D', cat: 'CP', epaisseur: 15, prix_unit: 10, unite: '€/U', affaire_origine: 'a', operateur_id: 'u' },
+    });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ statut: 'reutilisee_partiel', reste_jete: false }));
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'c2', issu_de: 'c1', statut: 'disponible', longueur: 400 }),
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
   });
 });
