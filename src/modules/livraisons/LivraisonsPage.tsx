@@ -79,6 +79,14 @@ function ModalNouvelleLivraison({ open, onClose, preAffaireId }: ModalNouvellePr
   const affaires = useMemo(() => affairesData ?? [], [affairesData]);
   const colis = useMemo(() => colisData ?? [], [colisData]);
 
+  const initialColisIds = useMemo(
+    () =>
+      preAffaireId
+        ? colis.filter((c) => c.affaire_id === preAffaireId && !c.livraison_id).map((c) => c.id)
+        : [],
+    [colis, preAffaireId],
+  );
+
   const { register, handleSubmit, watch, reset, setValue } = useForm<NouvelleForm>({
     defaultValues: {
       affaire_id: preAffaireId ?? '',
@@ -88,7 +96,7 @@ function ModalNouvelleLivraison({ open, onClose, preAffaireId }: ModalNouvellePr
       transporteur: 'Transports ROUILLON',
       cout_transport: '',
       remarques: '',
-      colisIds: [],
+      colisIds: initialColisIds,
     },
   });
 
@@ -592,6 +600,7 @@ export default function LivraisonsPage() {
       </Card>
 
       <ModalNouvelleLivraison
+        key={preAffaireId ?? 'new'}
         open={showNew}
         onClose={() => setShowNew(false)}
         preAffaireId={preAffaireId}
