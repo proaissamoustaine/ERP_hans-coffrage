@@ -2,9 +2,33 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['pwa-icon.svg'],
+      workbox: {
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+      },
+      manifest: {
+        name: 'HANS COFFRAGE ERP',
+        short_name: 'HANS ERP',
+        description: 'ERP de production HANS COFFRAGE',
+        theme_color: '#1F4E4A',
+        background_color: '#FFF8E1',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          { src: 'pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+        ],
+      },
+    }),
+  ],
   test: {
     environment: 'jsdom',
     globals: true,
