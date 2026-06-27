@@ -298,6 +298,7 @@ export type Database = {
           hauteur: number | null
           id: string
           largeur: number | null
+          livraison_id: string | null
           longueur: number | null
           numero: number | null
           poids: number | null
@@ -308,6 +309,7 @@ export type Database = {
           hauteur?: number | null
           id?: string
           largeur?: number | null
+          livraison_id?: string | null
           longueur?: number | null
           numero?: number | null
           poids?: number | null
@@ -318,6 +320,7 @@ export type Database = {
           hauteur?: number | null
           id?: string
           largeur?: number | null
+          livraison_id?: string | null
           longueur?: number | null
           numero?: number | null
           poids?: number | null
@@ -328,6 +331,79 @@ export type Database = {
             columns: ["affaire_id"]
             isOneToOne: false
             referencedRelation: "affaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "colis_livraison_id_fkey"
+            columns: ["livraison_id"]
+            isOneToOne: false
+            referencedRelation: "livraisons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commandes_transport: {
+        Row: {
+          affaire_id: string
+          cout: number | null
+          created_at: string
+          created_by: string | null
+          date_enlevement: string | null
+          date_livraison: string | null
+          haut_ml: number | null
+          id: string
+          larg_ml: number | null
+          livraison_id: string | null
+          long_ml: number | null
+          poids_t: number | null
+          reference: string
+          statut: string
+        }
+        Insert: {
+          affaire_id: string
+          cout?: number | null
+          created_at?: string
+          created_by?: string | null
+          date_enlevement?: string | null
+          date_livraison?: string | null
+          haut_ml?: number | null
+          id?: string
+          larg_ml?: number | null
+          livraison_id?: string | null
+          long_ml?: number | null
+          poids_t?: number | null
+          reference: string
+          statut?: string
+        }
+        Update: {
+          affaire_id?: string
+          cout?: number | null
+          created_at?: string
+          created_by?: string | null
+          date_enlevement?: string | null
+          date_livraison?: string | null
+          haut_ml?: number | null
+          id?: string
+          larg_ml?: number | null
+          livraison_id?: string | null
+          long_ml?: number | null
+          poids_t?: number | null
+          reference?: string
+          statut?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commandes_transport_affaire_id_fkey"
+            columns: ["affaire_id"]
+            isOneToOne: false
+            referencedRelation: "affaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commandes_transport_livraison_id_fkey"
+            columns: ["livraison_id"]
+            isOneToOne: false
+            referencedRelation: "livraisons"
             referencedColumns: ["id"]
           },
         ]
@@ -576,6 +652,59 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "taches_codes"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      livraisons: {
+        Row: {
+          affaire_id: string
+          cout_transport: number | null
+          created_at: string
+          created_by: string | null
+          date_prevue: string | null
+          destination: string | null
+          id: string
+          reference: string
+          remarques: string | null
+          statut: string
+          transporteur: string
+          type: string
+        }
+        Insert: {
+          affaire_id: string
+          cout_transport?: number | null
+          created_at?: string
+          created_by?: string | null
+          date_prevue?: string | null
+          destination?: string | null
+          id?: string
+          reference: string
+          remarques?: string | null
+          statut?: string
+          transporteur?: string
+          type?: string
+        }
+        Update: {
+          affaire_id?: string
+          cout_transport?: number | null
+          created_at?: string
+          created_by?: string | null
+          date_prevue?: string | null
+          destination?: string | null
+          id?: string
+          reference?: string
+          remarques?: string | null
+          statut?: string
+          transporteur?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "livraisons_affaire_id_fkey"
+            columns: ["affaire_id"]
+            isOneToOne: false
+            referencedRelation: "affaires"
+            referencedColumns: ["id"]
           },
         ]
       }
