@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from './AppShell';
 
 vi.mock('../../auth/AuthProvider', () => ({
@@ -13,14 +14,17 @@ vi.mock('../../auth/AuthProvider', () => ({
 }));
 
 function renderShell() {
+  const qc = new QueryClient();
   render(
-    <MemoryRouter initialEntries={['/']}>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route index element={<div>contenu</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route index element={<div>contenu</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

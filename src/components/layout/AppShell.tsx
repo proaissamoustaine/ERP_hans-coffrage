@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { OfflineBanner } from './OfflineBanner';
 import { C } from '../../lib/theme';
 
 export function AppShell() {
@@ -26,6 +27,7 @@ export function AppShell() {
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
+        <OfflineBanner />
         <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
           <Outlet />
         </div>
