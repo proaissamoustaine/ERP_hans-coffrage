@@ -15,7 +15,9 @@
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/query-sync-storage-persister": "^5.101.1",
     "@tanstack/react-query": "^5.101.1",
+    "@tanstack/react-query-persist-client": "^5.101.1",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
