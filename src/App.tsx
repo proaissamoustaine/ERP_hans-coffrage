@@ -14,10 +14,11 @@ const AffairesPage = lazy(() => import('./modules/affaires/AffairesPage'));
 const FicheAffairePage = lazy(() => import('./modules/affaires/FicheAffairePage'));
 const FormulairePage = lazy(() => import('./modules/formulaire/FormulairePage'));
 const FlashagePage = lazy(() => import('./modules/flashage/FlashagePage'));
+const ChutesPage = lazy(() => import('./modules/chutes/ChutesPage'));
 const StubPage = lazy(() => import('./modules/StubPage'));
 
 /** IDs that have real page implementations */
-const BUILT_IDS = new Set(['dashboard', 'clients', 'devis', 'affaires', 'formulaire', 'flashage']);
+const BUILT_IDS = new Set(['dashboard', 'clients', 'devis', 'affaires', 'formulaire', 'flashage', 'chutes']);
 
 function Loading() {
   return (
@@ -71,6 +72,10 @@ export default function App() {
             <Route
               path="flashage"
               element={<ProtectedRoute page="flashage"><FlashagePage /></ProtectedRoute>}
+            />
+            <Route
+              path="chutes"
+              element={<ProtectedRoute page="chutes"><ChutesPage /></ProtectedRoute>}
             />
 
             {/* Stub routes for every other nav item */}
