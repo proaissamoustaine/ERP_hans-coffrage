@@ -13,6 +13,7 @@ export type BonLivraisonPrintProps = {
 };
 
 export function BonLivraisonPrint(p: BonLivraisonPrintProps) {
+  const totalKg = p.colis.reduce((s, c) => s + (c.poids ?? 0), 0);
   return (
     <div className="print-doc bl" style={{ fontFamily: 'Georgia, serif', color: C.text, padding: 24 }}>
       <header style={{ borderBottom: `2px solid ${C.primary}`, paddingBottom: 8, marginBottom: 16 }}>
@@ -46,6 +47,12 @@ export function BonLivraisonPrint(p: BonLivraisonPrintProps) {
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={4} style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>Total</td>
+            <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontWeight: 700 }}>{totalKg}</td>
+          </tr>
+        </tfoot>
       </table>
       <div style={{ marginTop: 40, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, fontSize: 12 }}>
         <div>Signature expéditeur :</div>

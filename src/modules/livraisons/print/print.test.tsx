@@ -10,15 +10,20 @@ const liv = {
   chantier: 'STEP WASMUEL',
   destination: 'QUAREGNON BELGIQUE',
   date: '2026-06-27',
-  colis: [{ numero: 1, longueur: 1200, largeur: 800, hauteur: 200, poids: 860 }],
+  colis: [
+    { numero: 1, longueur: 1200, largeur: 800, hauteur: 200, poids: 860 },
+    { numero: 2, longueur: 600, largeur: 400, hauteur: 150, poids: 140 },
+  ],
 };
 
 describe('BonLivraisonPrint', () => {
-  it('affiche la reference, le client et le colis', () => {
+  it('affiche la reference, le client et les colis avec le total', () => {
     render(<BonLivraisonPrint {...liv} />);
     expect(screen.getByText('LIV-2026-001')).toBeInTheDocument();
     expect(screen.getByText(/EIFFAGE/)).toBeInTheDocument();
-    expect(screen.getByText(/860/)).toBeInTheDocument();
+    expect(screen.getByText('860')).toBeInTheDocument();
+    // total des deux colis (860 + 140)
+    expect(screen.getByText('1000')).toBeInTheDocument();
   });
 });
 
