@@ -8,8 +8,10 @@ import { AuthProvider } from './auth/AuthProvider.tsx';
 import { ErrorBoundary } from './components/layout/ErrorBoundary.tsx';
 import { queryClient, persister } from './lib/queryClient';
 import { registerOfflineMutationDefaults } from './lib/offlineMutations';
+import { setupOnlineResume } from './lib/setupOnlineResume';
 
 registerOfflineMutationDefaults(queryClient);
+setupOnlineResume(queryClient);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
