@@ -158,15 +158,20 @@ export type Database = {
           affaire_origine: string | null
           cat: string | null
           created_at: string
+          date_consommation: string | null
           designation: string | null
           epaisseur: number | null
           id: string
+          issu_de: string | null
           largeur: number | null
           longueur: number | null
           matiere_code: string | null
+          mode_reutilisation: string | null
           operateur_id: string | null
           prix_unit: number | null
+          reste_jete: boolean
           statut: Database["public"]["Enums"]["chute_statut"]
+          unite: string | null
           updated_at: string | null
         }
         Insert: {
@@ -174,15 +179,20 @@ export type Database = {
           affaire_origine?: string | null
           cat?: string | null
           created_at?: string
+          date_consommation?: string | null
           designation?: string | null
           epaisseur?: number | null
           id?: string
+          issu_de?: string | null
           largeur?: number | null
           longueur?: number | null
           matiere_code?: string | null
+          mode_reutilisation?: string | null
           operateur_id?: string | null
           prix_unit?: number | null
+          reste_jete?: boolean
           statut?: Database["public"]["Enums"]["chute_statut"]
+          unite?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -190,15 +200,20 @@ export type Database = {
           affaire_origine?: string | null
           cat?: string | null
           created_at?: string
+          date_consommation?: string | null
           designation?: string | null
           epaisseur?: number | null
           id?: string
+          issu_de?: string | null
           largeur?: number | null
           longueur?: number | null
           matiere_code?: string | null
+          mode_reutilisation?: string | null
           operateur_id?: string | null
           prix_unit?: number | null
+          reste_jete?: boolean
           statut?: Database["public"]["Enums"]["chute_statut"]
+          unite?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -214,6 +229,13 @@ export type Database = {
             columns: ["affaire_origine"]
             isOneToOne: false
             referencedRelation: "affaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chutes_issu_de_fkey"
+            columns: ["issu_de"]
+            isOneToOne: false
+            referencedRelation: "chutes"
             referencedColumns: ["id"]
           },
         ]
