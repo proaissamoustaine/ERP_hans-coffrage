@@ -19,9 +19,10 @@ const ColisagePage = lazy(() => import('./modules/colisage/ColisagePage'));
 const PeseePage = lazy(() => import('./modules/colisage/PeseePage'));
 const StubPage = lazy(() => import('./modules/StubPage'));
 const LivraisonsPage = lazy(() => import('./modules/livraisons/LivraisonsPage'));
+const TransportPage = lazy(() => import('./modules/livraisons/TransportPage'));
 
 /** IDs that have real page implementations */
-const BUILT_IDS = new Set(['dashboard', 'clients', 'devis', 'affaires', 'formulaire', 'flashage', 'chutes', 'colisage', 'pesee', 'livraisons']);
+const BUILT_IDS = new Set(['dashboard', 'clients', 'devis', 'affaires', 'formulaire', 'flashage', 'chutes', 'colisage', 'pesee', 'livraisons', 'transport']);
 
 function Loading() {
   return (
@@ -91,6 +92,10 @@ export default function App() {
             <Route
               path="livraisons"
               element={<ProtectedRoute page="livraisons"><LivraisonsPage /></ProtectedRoute>}
+            />
+            <Route
+              path="transport"
+              element={<ProtectedRoute page="transport"><TransportPage /></ProtectedRoute>}
             />
 
             {/* Stub routes for every other nav item */}
