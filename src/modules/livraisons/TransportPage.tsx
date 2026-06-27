@@ -15,6 +15,8 @@ import { useCommandesTransport, useCreerCommande } from './useCommandesTransport
 import { useAffaires } from '../affaires/useAffaires';
 import { useColis } from '../colisage/useColis';
 import { encombrement, mailtoCommande } from './livraisonsData';
+import { PrintView } from './print/PrintView';
+import { CommandeTransportPrint } from './print/CommandeTransportPrint';
 
 export default function TransportPage() {
   const { data: commandesData } = useCommandesTransport();
@@ -31,6 +33,7 @@ export default function TransportPage() {
   const [cout, setCout] = useState('');
   const [dateEnlevement, setDateEnlevement] = useState('');
   const [dateLivraison, setDateLivraison] = useState('');
+  const [showApercu, setShowApercu] = useState(false);
 
   // Affaire sélectionnée
   const affaireChoisie = useMemo(
@@ -278,7 +281,12 @@ export default function TransportPage() {
                 >
                   Envoyer la commande
                 </Btn>
-                <Btn variant="secondary" icon={FileText} disabled>
+                <Btn
+                  variant="secondary"
+                  icon={FileText}
+                  onClick={() => setShowApercu(true)}
+                  disabled={!affaireId}
+                >
                   Aperçu
                 </Btn>
               </div>
@@ -360,6 +368,23 @@ export default function TransportPage() {
           </table>
         </Card>
       </div>
+      {showApercu && affaireChoisie && (
+        <PrintView title="Aperçu commande transport" onClose={() => setShowApercu(false)}>
+          <CommandeTransportPrint
+            reference="(aperçu — non envoyée)"
+            affaireNumero={affaireChoisie.numero}
+            destinataire={destinataire}
+            adresse={adresse}
+            conducteur={conducteur || null}
+            conducteurTel={conducteurTel || null}
+            dateEnlevement={dateEnlevement || null}
+            dateLivraison={dateLivraison || null}
+            cout={cout ? parseFloat(cout) : null}
+            encombrement={enc}
+            colis={colisDeLAffaire.map((c) => ({ numero: c.numero, poids: c.poids }))}
+          />
+        </PrintView>
+      )}
     </div>
   );
 }

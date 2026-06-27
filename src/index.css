@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+@media print {
+  .no-print { display: none !important; }
+  .print-doc.etiquette { page-break-after: always; }
+}

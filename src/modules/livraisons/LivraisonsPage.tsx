@@ -11,6 +11,7 @@ import {
   Scale,
   FileText,
   Check,
+  Tag,
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -29,6 +30,9 @@ import type { LivraisonAvecAffaire, CreerLivraisonInput } from './useLivraisons'
 import { useAffaires } from '../affaires/useAffaires';
 import { useColis } from '../colisage/useColis';
 import { statutLivraisonLabel, totalPoidsKg, poidsTonnes } from './livraisonsData';
+import { PrintView } from './print/PrintView';
+import { BonLivraisonPrint } from './print/BonLivraisonPrint';
+import { EtiquetteColisPrint } from './print/EtiquetteColisPrint';
 
 // ─── Pastille statut livraison ─────────────────────────────────────────────
 const STATUT_LIV: Record<string, { bg: string; color: string }> = {
@@ -267,9 +271,11 @@ type ModalVoirProps = {
   livraison: LivraisonAvecAffaire | null;
   nbColis: number;
   poidsKg: number;
+  onBL: () => void;
+  onEtiquettes: () => void;
 };
 
-function ModalVoirLivraison({ open, onClose, livraison, nbColis, poidsKg }: ModalVoirProps) {
+function ModalVoirLivraison({ open, onClose, livraison, nbColis, poidsKg, onBL, onEtiquettes }: ModalVoirProps) {
   const majStatut = useMajStatutLivraison();
 
   if (!livraison) return null;
@@ -287,7 +293,8 @@ function ModalVoirLivraison({ open, onClose, livraison, nbColis, poidsKg }: Moda
       subtitle={subtitle}
       footer={
         <>
-          <Btn variant="secondary" icon={FileText} disabled>BL</Btn>
+          <Btn variant="secondary" icon={FileText} onClick={onBL}>BL</Btn>
+          <Btn variant="secondary" icon={Tag} onClick={onEtiquettes}>Étiquettes</Btn>
           <Btn
             icon={Truck}
             onClick={() => {
@@ -368,6 +375,7 @@ export default function LivraisonsPage() {
   const [showView, setShowView] = useState(false);
   const [selLiv, setSelLiv] = useState<LivraisonAvecAffaire | null>(null);
   const [preAffaireId, setPreAffaireId] = useState<string | undefined>(undefined);
+  const [printKind, setPrintKind] = useState<'bl' | 'etiquettes' | null>(null);
 
   const { data: livraisonsData } = useLivraisons();
   const { data: affairesData } = useAffaires();
@@ -388,6 +396,9 @@ export default function LivraisonsPage() {
     }
     return map;
   }, [colis]);
+
+  // Colis de la livraison sélectionnée
+  const colisSel = selLiv ? (colisByLivraison.get(selLiv.id) ?? []) : [];
 
   // KPI calculés
   const nbEnPreparation = useMemo(
@@ -591,7 +602,40 @@ export default function LivraisonsPage() {
         livraison={selLiv}
         nbColis={selLiv ? (colisByLivraison.get(selLiv.id) ?? []).length : 0}
         poidsKg={selLiv ? totalPoidsKg(colisByLivraison.get(selLiv.id) ?? []) : 0}
+        onBL={() => setPrintKind('bl')}
+        onEtiquettes={() => setPrintKind('etiquettes')}
       />
+      {printKind && selLiv && (
+        <PrintView
+          title={printKind === 'bl' ? 'Bon de livraison' : 'Étiquettes colis'}
+          onClose={() => setPrintKind(null)}
+        >
+          {printKind === 'bl' ? (
+            <BonLivraisonPrint
+              reference={selLiv.reference}
+              affaireNumero={selLiv.affaire?.numero ?? ''}
+              client={selLiv.affaire?.client?.nom ?? ''}
+              chantier={selLiv.affaire?.chantier ?? ''}
+              destination={selLiv.destination ?? ''}
+              date={selLiv.date_prevue ?? (selLiv.created_at as string)}
+              colis={colisSel.map((c) => ({
+                numero: c.numero, longueur: c.longueur, largeur: c.largeur, hauteur: c.hauteur, poids: c.poids,
+              }))}
+            />
+          ) : (
+            colisSel.map((c) => (
+              <EtiquetteColisPrint
+                key={c.id}
+                affaireNumero={selLiv.affaire?.numero ?? ''}
+                client={selLiv.affaire?.client?.nom ?? ''}
+                chantier={selLiv.affaire?.chantier ?? ''}
+                colis={{ numero: c.numero, longueur: c.longueur, largeur: c.largeur, hauteur: c.hauteur, poids: c.poids }}
+                total={colisSel.length}
+              />
+            ))
+          )}
+        </PrintView>
+      )}
     </div>
   );
 }
