@@ -4,6 +4,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  CheckCircle2,
   Eraser,
   Printer,
   ClipboardList,
@@ -14,7 +15,9 @@ import { Badge } from '../../components/ui/Badge';
 import { Spinner } from '../../components/ui/Spinner';
 import { C } from '../../lib/theme';
 
+import { useAuth } from '../../auth/AuthProvider';
 import { useAffaires } from '../affaires/useAffaires';
+import { useEtapes } from '../affaires/useEtapes';
 import { useCatalogue } from './useCatalogue';
 import { useTauxMO } from './useTauxMO';
 import {
@@ -22,6 +25,8 @@ import {
   useCreatePiece,
   useDeletePiece,
   useUpdatePiece,
+  useTogglePieceFait,
+  useValiderFormulaire,
 } from './usePieces';
 import { famillesFor, matieresFor } from './catalogue';
 import type { PieceInput } from './pieceSchema';
@@ -70,9 +75,6 @@ const SECTIONS = [
   { geom: 'type3', label: 'Type_3' },
   { geom: 'mo', label: "Main d'œuvre" },
 ] as const;
-
-// La fiche atelier (cochage) dépend de la validation → passe 2. Toujours false ici.
-const ficheValidee = false;
 
 // ---------------------------------------------------------------------------
 // État du formulaire (mirror FORM_INITIAL de la maquette)
@@ -214,6 +216,7 @@ const dimStr = (d: Dimensions, key: string): string | number => {
 // ---------------------------------------------------------------------------
 
 export default function FormulairePage() {
+  const { profil } = useAuth();
   const { data: affaires } = useAffaires();
   const { data: catalogue } = useCatalogue();
   const { data: tauxMO } = useTauxMO();
@@ -229,14 +232,22 @@ export default function FormulairePage() {
   const { data: piecesData, isLoading: piecesLoading } = usePieces(effectiveId || null);
   const pieces = (piecesData ?? []) as PieceRow[];
 
+  // Étapes de l'affaire → état de validation de la fiche atelier (étape `saisie_pieces`)
+  const { data: etapes } = useEtapes(effectiveId || null);
+  const saisiePiecesEtape = (etapes ?? []).find((e) => e.etape === 'saisie_pieces');
+  const ficheValidee = !!saisiePiecesEtape?.fait;
+
   const createPiece = useCreatePiece();
   const updatePiece = useUpdatePiece();
   const deletePiece = useDeletePiece();
+  const togglePieceFait = useTogglePieceFait();
+  const valider = useValiderFormulaire();
 
   const [form, setForm] = useState<FormState>(FORM_INITIAL);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [confirmValidation, setConfirmValidation] = useState(false);
 
   const updateForm = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
 
@@ -450,7 +461,11 @@ export default function FormulairePage() {
           {piecesSection.map((p) => {
             const dimP = (p.dimensions as Dimensions) ?? {};
             return (
-              <tr key={p.id} className="border-b hover:bg-gray-50" style={{ borderColor: C.border }}>
+              <tr
+                key={p.id}
+                className="border-b hover:bg-gray-50"
+                style={{ borderColor: C.border, backgroundColor: p.fait ? C.successSoft : undefined }}
+              >
                 <td className="py-1 pr-2 truncate max-w-[200px]" title={p.designation ?? ''}>
                   {p.designation ||
                     TYPES_MATIERE.find((t) => t.id === p.type)?.label ||
@@ -500,7 +515,40 @@ export default function FormulairePage() {
                 )}
                 {/* Machine non persistée (pas de colonne DB) — cellule vide, en-tête conservé pour fidélité */}
                 <td className="py-1 px-1 text-[10px]" />
-
+                {ficheValidee && (
+                  <td className="text-center py-1 px-1">
+                    <label
+                      className="inline-flex flex-col items-center cursor-pointer"
+                      title={
+                        p.fait
+                          ? `Fait par ${p.fait_par ?? '—'}${
+                              p.fait_date ? ` le ${fmtDate(p.fait_date)}` : ''
+                            }`
+                          : 'Cocher quand fait'
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!p.fait}
+                        onChange={() =>
+                          togglePieceFait.mutate({
+                            id: p.id,
+                            fait: !p.fait,
+                            faitPar: profil?.nom ?? 'Opérateur',
+                            affaireId: effectiveId,
+                          })
+                        }
+                        className="w-4 h-4 cursor-pointer"
+                        style={{ accentColor: C.success }}
+                      />
+                      {p.fait && p.fait_par && (
+                        <span className="text-[8px] mt-0.5 leading-none" style={{ color: C.success }}>
+                          {p.fait_par.split(' ')[0]}
+                        </span>
+                      )}
+                    </label>
+                  </td>
+                )}
                 <td className="text-right py-1 px-1 whitespace-nowrap">{renderRowActions(p)}</td>
               </tr>
             );
@@ -682,18 +730,35 @@ export default function FormulairePage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
+          {ficheValidee ? (
+            <div
+              className="px-3 py-2 rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+              style={{ backgroundColor: C.successSoft, color: C.success }}
+            >
+              <CheckCircle2 size={14} /> Formulaire validé
+              <span className="ml-1 font-normal normal-case" style={{ color: C.textMuted }}>
+                · {fmtDate(saisiePiecesEtape?.date)}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmValidation(true)}
+              disabled={pieces.length === 0}
+              className="px-3 py-2 rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ backgroundColor: C.success }}
+              title={
+                pieces.length === 0
+                  ? 'Ajoutez au moins une pièce avant de valider'
+                  : 'Publier la fiche atelier pour les ouvriers'
+              }
+            >
+              <Check size={14} /> Valider le formulaire
+            </button>
+          )}
           <button
-            disabled
-            title="passe 2"
-            className="px-3 py-2 rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-white opacity-40 cursor-not-allowed"
-            style={{ backgroundColor: C.success }}
-          >
-            <Check size={14} /> Valider le formulaire
-          </button>
-          <button
-            disabled
-            title="passe 2"
-            className="px-3 py-2 border rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider opacity-40 cursor-not-allowed"
+            onClick={() => window.print()}
+            disabled={pieces.length === 0}
+            className="px-3 py-2 border rounded flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ borderColor: C.border, color: C.text }}
           >
             <Printer size={14} /> Imprimer fiche atelier
@@ -1186,6 +1251,59 @@ export default function FormulairePage() {
                   style={{ backgroundColor: C.danger }}
                 >
                   Confirmer la suppression
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === Modale confirmation Valider le formulaire === */}
+        {confirmValidation && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          >
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+              <h3 className="text-lg font-bold mb-2 flex items-center gap-2" style={{ color: C.success }}>
+                <CheckCircle2 size={20} /> Valider la fiche atelier ?
+              </h3>
+              <p className="text-sm mb-5" style={{ color: C.textMuted }}>
+                Vous allez publier la fiche atelier de l'affaire <strong>{affaire?.numero}</strong> (
+                {pieces.length} pièce{pieces.length > 1 ? 's' : ''}). Les ouvriers pourront alors
+                cocher les pièces faites.
+              </p>
+              {valider.isError && (
+                <div
+                  className="mb-4 p-2.5 rounded border-l-4 flex items-start gap-2 text-xs"
+                  style={{ borderLeftColor: C.danger, backgroundColor: C.dangerSoft, color: '#8B2418' }}
+                >
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: C.danger }} />
+                  <span>
+                    Échec de la validation :{' '}
+                    <strong>{(valider.error as Error | null)?.message ?? 'erreur inconnue'}</strong>.
+                  </span>
+                </div>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setConfirmValidation(false)}
+                  className="px-4 py-2 border rounded text-sm font-bold"
+                  style={{ borderColor: C.border, color: C.text }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() =>
+                    valider.mutate(
+                      { affaireId: effectiveId, etapeId: saisiePiecesEtape?.id ?? null },
+                      { onSuccess: () => setConfirmValidation(false) },
+                    )
+                  }
+                  disabled={valider.isPending}
+                  className="px-4 py-2 rounded text-sm font-bold text-white disabled:opacity-50"
+                  style={{ backgroundColor: C.success }}
+                >
+                  Confirmer la validation
                 </button>
               </div>
             </div>

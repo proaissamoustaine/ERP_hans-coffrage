@@ -90,3 +90,32 @@ export function useTogglePieceFait() {
     },
   });
 }
+
+/**
+ * Valide la fiche atelier : marque l'étape `saisie_pieces` de l'affaire comme faite.
+ * Upsert robuste — l'affaire peut ne pas encore avoir d'étape `saisie_pieces`.
+ */
+export function useValiderFormulaire() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { affaireId: string; etapeId: string | null }) => {
+      const now = new Date().toISOString();
+      if (vars.etapeId) {
+        const { error } = await supabase
+          .from('etapes_affaire')
+          .update({ fait: true, date: now })
+          .eq('id', vars.etapeId);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase
+          .from('etapes_affaire')
+          .insert({ affaire_id: vars.affaireId, etape: 'saisie_pieces', fait: true, date: now });
+        if (error) throw new Error(error.message);
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['etapes', vars.affaireId] });
+      qc.invalidateQueries({ queryKey: ['affaires'] });
+    },
+  });
+}

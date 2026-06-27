@@ -59,6 +59,16 @@ vi.mock('./usePieces', () => ({
   useCreatePiece: () => ({ mutate: vi.fn(), isPending: false }),
   useDeletePiece: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdatePiece: () => ({ mutate: vi.fn(), isPending: false }),
+  useTogglePieceFait: () => ({ mutate: vi.fn(), isPending: false }),
+  useValiderFormulaire: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}));
+
+vi.mock('../affaires/useEtapes', () => ({
+  useEtapes: () => ({ data: [{ id: 'e1', etape: 'saisie_pieces', fait: false, date: null }] }),
+}));
+
+vi.mock('../../auth/AuthProvider', () => ({
+  useAuth: () => ({ profil: { nom: 'Jean Dupont', role: 'atelier' } }),
 }));
 
 import FormulairePage from './FormulairePage';
@@ -111,6 +121,13 @@ describe('FormulairePage', () => {
     // Au rendu initial (aucun type choisi), l'encart d'aide doit lister ce qui manque
     expect(
       screen.getByText(/Pour ajouter la pièce, renseignez encore/),
+    ).toBeInTheDocument();
+  });
+
+  it('affiche le bouton « Valider le formulaire » (fiche non validée)', () => {
+    renderPage();
+    expect(
+      screen.getByRole('button', { name: /Valider le formulaire/ }),
     ).toBeInTheDocument();
   });
 });
